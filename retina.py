@@ -16,7 +16,7 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime =   50.0     # [ms]
+simulationTime =   110.0     # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
 stopTime       =  10.0      # [ms]
@@ -30,16 +30,28 @@ inhibRangeHC    =    1       # [pixels]
 inhibRangeAC    =    2       # [pixels]
 nonInhibRangeHC =    0
 nonInhibRangeAC =    1       # [pixels]
+RC_GC           =    1       # [ms]
+RC_BC           =    10       # [ms]
+RC_AC           =    3       # [ms]
+RC_HC           =    14       # [ms]
 nRows           =   10       # [pixels]
 nCols           =   10       # [pixels]
 
 # Input parameters
-inputTarget    =   (5, 5)  # [pixels]
-inputRadius    =    4        # [pixels]
-inputGain      = 3000.0      # [pA]
-inputNoise     =   10.0      # [pA]
-def inputIntensity(d, sigma):
+inputTarget    =   (5, 5)    # [pixels]
+inputRadius    =    3        # [pixels]
+#inputGain      = 1200.0     # [pA] or [mV]
+inputVoltage   =   0.05*180      # [mV]
+inputNoise     =   10.0
+def inputSpaceFrame(d, sigma):
     return numpy.exp(-d**2/(2*sigma**2))
+def inputTimeFrame(RC, gain, t, start, stop):
+    if start < t < stop:
+        return gain*(1-numpy.exp(-(t-start)/RC))
+    if t >= stop:
+        return gain*(1-numpy.exp(-(stop-start)/RC))*numpy.exp (-(t-stop)/RC)
+    else:
+        return 0
 
 # Set the neurons whose LFP is going to be recorded
 neuronsToRecord = [(inputTarget[0]+  0,           inputTarget[1]+0),
@@ -56,10 +68,10 @@ interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0, 'V_reset': -70.0
 
 # Connection parameters
 connections    = {
-    'BC_To_GC' :  100.0,  # [nS/spike]
-    'AC_To_GC' : -100.0,  # [nS/spike]
-    'HC_To_BC' : -25.0 ,  # [nS/spike]
-    'BC_To_AC' :  10.0 }  # [nS/spike]
+    'BC_To_GC' :  500.0,  # 100 [nS/spike]
+    'AC_To_GC' : -100.0,  # -100 [nS/spike]
+    'HC_To_BC' : -10.0 ,  # -25 [nS/spike]
+    'BC_To_AC' :  10.0 }  # 10 [nS/spike]
 
 # Scale the weights, if needed
 weightScale    = 0.0005
@@ -167,7 +179,7 @@ timeSteps = int(simulationTime/stepDuration)
 for time in range(timeSteps):
 
     # Start the stimulus
-    if time == int(startTime/stepDuration):
+    if int(startTime/stepDuration) < time < int(stopTime/stepDuration):
 
         # Ganglion cells
         for i in range(nRows):
@@ -175,8 +187,11 @@ for time in range(timeSteps):
                 distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
                 if distance < inputRadius:
                     noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                    inputStrength = (inputGain+noiseGain)*inputIntensity(distance, 0.5*inputRadius)
-                    nest.SetStatus([GC[i*nRows + j]], {'I_e': inputStrength*0.88})
+                    inputStrength = (inputVoltage+noiseGain)*inputSpaceFrame(distance, 0.5*inputRadius)
+                    StimGC= inputTimeFrame(RC_GC, inputStrength, time, startTime, stopTime)
+                    target        = (                 i*nCols + j)
+                    GCVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
+                    nest.SetStatus([GC[target]], {'V_m': restPot + GCVoltage + StimGC})
 
         # Bipolar cells input
         for i in range(nRows):
@@ -184,37 +199,45 @@ for time in range(timeSteps):
                 distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
                 if distance < inputRadius:
                     noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                    inputStrength = (inputGain+noiseGain)*inputIntensity(distance, 0.5*inputRadius)
+                    inputStrength = (inputVoltage+noiseGain)*inputSpaceFrame(distance, 0.5*inputRadius)
+                    StimBC= inputTimeFrame(RC_BC, inputStrength, time, startTime, stopTime)
                     for k in range(BGCRatio):
-                        nest.SetStatus([BC[k*nRows*nCols + i*nRows + j]], {'I_e': inputStrength*0.69})
+                        target    = (k*nRows*nCols + i*nRows + j)
+                        BCVoltage = nest.GetStatus([BC[target]], 'V_m')[0]- restPot
+                        nest.SetStatus([BC[target]], {'V_m': restPot + BCVoltage + StimBC*0.69})
 
         # Amacrine cells input
-        for iAC in range(nRows):
-            for jAC in range(nCols):
-                distance = numpy.sqrt((inhibRangeAC*iAC-inputTarget[0])**2 + (inhibRangeAC*jAC-inputTarget[1])**2)
+        for i in range(nRows):
+            for j in range(nCols):
+                distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
                 if distance < inputRadius:
                     noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                    inputStrength = (inputGain+noiseGain)*inputIntensity(distance, 0.5*inputRadius)
+                    inputStrength = (inputVoltage+noiseGain)*inputSpaceFrame(distance, 0.5*inputRadius)
+                    StimAC= inputTimeFrame(RC_AC, inputStrength, time, startTime, stopTime)
                     for k in range(AGCRatio):
-                        nest.SetStatus([AC[k*nRows*nCols + i*nRows + j]], {'I_e': inputStrength*0.61})
+                        target    = (k*nRows*nCols + i*nRows + j)
+                        ACVoltage = nest.GetStatus([AC[target]], 'V_m')[0] - restPot
+                        nest.SetStatus([AC[target]], {'V_m': restPot + ACVoltage + StimAC*0.61})
 
         # Horizontal cells input
-        for iHC in range(nRows):
-            for jHC in range(nCols):
-                distance = numpy.sqrt((inhibRangeHC*iHC-inputTarget[0])**2 + (inhibRangeHC*jHC-inputTarget[1])**2)
+        for i in range(nRows):
+            for j in range(nCols):
+                distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
                 if distance < inputRadius:
                     noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                    inputStrength = (inputGain+noiseGain)*inputIntensity(distance, 0.5*inputRadius)
+                    inputStrength = (inputVoltage+noiseGain)*inputSpaceFrame(distance, 0.5*inputRadius)
+                    StimHC= inputTimeFrame(RC_HC, inputStrength, time, startTime, stopTime)
                     for k in range(HGCRatio):
-                        nest.SetStatus([HC[k*nRows*nCols + i*nRows + j]], {'I_e': inputStrength*0.53})
+                        target    = (k*nRows*nCols + i*nRows + j)
+                        HCVoltage = nest.GetStatus([HC[target]], 'V_m')[0] - restPot
+                        nest.SetStatus([HC[target]], {'V_m': restPot + HCVoltage + StimHC*0.53})
 
-
-    # Stop the stimulus
-    if time == int(stopTime/stepDuration):
-        nest.SetStatus(GC, {'I_e': 0.0})
-        nest.SetStatus(BC, {'I_e': 0.0})
-        nest.SetStatus(AC, {'I_e': 0.0})
-        nest.SetStatus(HC, {'I_e': 0.0})
+    # # Stop the stimulus
+    # if time == int(stopTime/stepDuration):
+    #     nest.SetStatus(GC, {'I_e': 0.0})
+    #     nest.SetStatus(BC, {'I_e': 0.0})
+    #     nest.SetStatus(AC, {'I_e': 0.0})
+    #     nest.SetStatus(HC, {'I_e': 0.0})
 
     # Connections from bipolar cells to the retinal ganglion cells
     source = []
@@ -280,8 +303,8 @@ for time in range(timeSteps):
 
     # Run the simulation for one gif frame
     nest.Simulate(stepDuration)
-    if time < timeSteps-1:
-        sys.stdout.write("\033[2F") # move the cursor back to previous line
+    # if time < timeSteps-1:
+    #     sys.stdout.write("\033[2F") # move the cursor back to previous line
 
     # Take screenshots of every recorded population
     for instance in gifMakerList: # gifMaker.getInstances():
@@ -305,49 +328,71 @@ for i in range(len(neuronsToRecord)):
     recCol = neuronsToRecord[i][1]
     spikes = nest.GetStatus([GCSD[recRow*nRows+recCol]], keys='events')[0]['times']
 
+    # Plot the membrane potential of HC
+    events = nest.GetStatus(HCMMs[i])[0]['events']
+    tPlot  = events['times'];
+    plt.subplot(5, len(neuronsToRecord)+1, 0*(len(neuronsToRecord)+1)+i+1)
+    plt.plot(tPlot, events['V_m'])
+    plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
+    plt.axis([0, simulationTime, -90, -20])
+    plt.ylabel('HC [mV]')
+
+    # Plot the membrane potential of BC
+    events = nest.GetStatus(BCMMs[i])[0]['events']
+    tPlot  = events['times'];
+    plt.subplot(5, len(neuronsToRecord)+1, 1*(len(neuronsToRecord)+1)+i+1)
+    plt.plot(tPlot, events['V_m'])
+    plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
+    plt.axis([0, simulationTime, -90, -20])
+    plt.ylabel('BC [mV]')
+
+    # Plot the membrane potential of AC
+    events = nest.GetStatus(ACMMs[i])[0]['events']
+    tPlot  = events['times'];
+    plt.subplot(5, len(neuronsToRecord)+1, 2*(len(neuronsToRecord)+1)+i+1)
+    plt.plot(tPlot, events['V_m'])
+    plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
+    plt.axis([0, simulationTime, -90, -20])
+    plt.ylabel('AC [mV]')
+
+    # Plot the membrane potential of GC
+    events = nest.GetStatus(GCMMs[i])[0]['events']
+    tPlot  = events['times'];
+    plt.subplot(5, len(neuronsToRecord)+1, 3*(len(neuronsToRecord)+1)+i+1)
+    plt.plot(tPlot, events['V_m'])
+    plt.plot([0, simulationTime], [threshPot, threshPot], 'k-', lw=1)
+    plt.axis([0, simulationTime, -90, -20])
+    plt.ylabel('GC [mV]')
+
     # Do the rasterplot
-    plt.subplot(5, len(neuronsToRecord), i+1)
+    plt.subplot(5, len(neuronsToRecord)+1, 4*(len(neuronsToRecord)+1)+i+1)
     plt.plot([startTime, stopTime], [1.25, 1.25], 'c-', lw=4)
     for spike in spikes:
         plt.plot([spike, spike], [0, 1], 'k-', lw=2)
     plt.axis([0, simulationTime, 0, 1.5])
     plt.ylabel('Rasterplot')
 
-    # Plot the membrane potential of GC
-    events = nest.GetStatus(GCMMs[i])[0]['events']
-    tPlot  = events['times'];
-    plt.subplot(5, len(neuronsToRecord), len(neuronsToRecord)+i+1)
-    plt.plot(tPlot, events['V_m'])
-    plt.plot([0, simulationTime], [threshPot, threshPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -100, -25])
-    plt.ylabel('GC [mV]')
+# Input shape
+inputTime    = []
+inputShapeHC = []
+inputShapeBC = []
+inputShapeAC = []
+inputShapeGC = []
+for time in range(timeSteps):
+    inputTime.append(time)
+    inputShapeHC.append(inputTimeFrame(RC_HC, 0.53, time, startTime, stopTime))
+    inputShapeBC.append(inputTimeFrame(RC_BC, 0.61, time, startTime, stopTime))
+    inputShapeAC.append(inputTimeFrame(RC_AC, 0.69, time, startTime, stopTime))
+    inputShapeGC.append(inputTimeFrame(RC_GC, 1, time, startTime, stopTime))
 
-    # Plot the membrane potential of BC
-    events = nest.GetStatus(BCMMs[i])[0]['events']
-    tPlot  = events['times'];
-    plt.subplot(5, len(neuronsToRecord), 2*len(neuronsToRecord)+i+1)
-    plt.plot(tPlot, events['V_m'])
-    plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -100, -25])
-    plt.ylabel('BC [mV]')
-
-    # Plot the membrane potential of AC
-    events = nest.GetStatus(ACMMs[i])[0]['events']
-    tPlot  = events['times'];
-    plt.subplot(5, len(neuronsToRecord), 3*len(neuronsToRecord)+i+1)
-    plt.plot(tPlot, events['V_m'])
-    plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -100, -25])
-    plt.ylabel('AC [mV]')
-
-    # Plot the membrane potential of HC
-    events = nest.GetStatus(HCMMs[i])[0]['events']
-    tPlot  = events['times'];
-    plt.subplot(5, len(neuronsToRecord), 4*len(neuronsToRecord)+i+1)
-    plt.plot(tPlot, events['V_m'])
-    plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -100, -25])
-    plt.ylabel('HC [mV]')
+plt.subplot(5,len(neuronsToRecord)+1, 1*(len(neuronsToRecord)+1))
+plt.plot(inputTime, 1.0*numpy.array(inputShapeHC))
+plt.subplot(5,len(neuronsToRecord)+1, 2*(len(neuronsToRecord)+1))
+plt.plot(inputTime, 1.0*numpy.array(inputShapeBC))
+plt.subplot(5,len(neuronsToRecord)+1, 3*(len(neuronsToRecord)+1))
+plt.plot(inputTime, 1.0*numpy.array(inputShapeAC))
+plt.subplot(5,len(neuronsToRecord)+1, 4*(len(neuronsToRecord)+1))
+plt.plot(inputTime, 1.0*numpy.array(inputShapeGC))
 
 # Show the plot
 plt.show()
