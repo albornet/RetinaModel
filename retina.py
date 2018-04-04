@@ -1,9 +1,10 @@
 import nest, numpy, os, sys
 import matplotlib.pyplot as plt
 from makeGifs import gifMaker
+nCoresToUse = 1
 nest.sli_run('M_WARNING setverbosity') # avoid writing too many NEST messages
 nest.ResetKernel()
-nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':4, 'print_time': True})
+nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'print_time': True})
 
 # To do:
 # all interneurons non spiking
@@ -15,23 +16,30 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':4, 'print_time': T
 ##########################
 
 # Simulation parameters
-simulationTime =  200.0      # [ms]
+simulationTime =   50.0     # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
 stopTime       =  10.0      # [ms]
 
 # Retina parameters
-BGCRatio       =    4
-inhibRangeHC   =    2       # [pixels]
-inhibRangeAC   =    2       # [pixels]
-nRows          =   20       # [pixels]
-nCols          =   20       # [pixels]
+BGCRatio        =    4
+AGCRatio        =    5
+HGCRatio        =    1
+excitRangeBC    =    1
+inhibRangeHC    =    1       # [pixels]
+inhibRangeAC    =    2       # [pixels]
+nonInhibRangeHC =    0
+nonInhibRangeAC =    1       # [pixels]
+nRows           =   10       # [pixels]
+nCols           =   10       # [pixels]
 
 # Input parameters
-inputTarget    =   (10, 10)  # [pixels]
-inputRadius    =    5       # [pixels]
-inputGain      = 2000.0     # [pA]
-inputNoise     =   10.0     # [pA]
+inputTarget    =   (5, 5)  # [pixels]
+inputRadius    =    4        # [pixels]
+inputGain      = 3000.0      # [pA]
+inputNoise     =   10.0      # [pA]
+def inputIntensity(d, sigma):
+    return numpy.exp(-d**2/(2*sigma**2))
 
 # Set the neurons whose LFP is going to be recorded
 neuronsToRecord = [(inputTarget[0]+  0,           inputTarget[1]+0),
@@ -48,10 +56,10 @@ interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0, 'V_reset': -70.0
 
 # Connection parameters
 connections    = {
-    'BC_To_GC' :  500.0*1,  # [nS/spike]
-    'AC_To_GC' : -100.0*2,  # [nS/spike]
-    'HC_To_BC' : -100.0*2,  # [nS/spike]
-    'BC_To_AC' :   50.0*1}  # [nS/spike]
+    'BC_To_GC' :  100.0,  # [nS/spike]
+    'AC_To_GC' : -100.0,  # [nS/spike]
+    'HC_To_BC' : -25.0 ,  # [nS/spike]
+    'BC_To_AC' :  10.0 }  # [nS/spike]
 
 # Scale the weights, if needed
 weightScale    = 0.0005
@@ -68,24 +76,18 @@ GC = nest.Create(neuronModel,          nRows*nCols,      neuronParams)
 BC = nest.Create(neuronModel, BGCRatio*nRows*nCols, interNeuronParams)
 
 # Inhibitory cells
-nHCRows = int(float(nRows)/float(inhibRangeHC))+1
-nHCCols = int(float(nCols)/float(inhibRangeHC))+1
-nACRows = int(float(nRows)/float(inhibRangeAC))+1
-nACCols = int(float(nCols)/float(inhibRangeAC))+1
-AC = nest.Create(neuronModel, nACRows*nACCols, interNeuronParams)
-HC = nest.Create(neuronModel, nHCRows*nHCCols, interNeuronParams)
+#nHCRows = int(float(nRows)/float(inhibRangeHC))+1
+#nHCCols = int(float(nCols)/float(inhibRangeHC))+1
+#nACRows = int(float(nRows)/float(inhibRangeAC))+1
+#nACCols = int(float(nCols)/float(inhibRangeAC))+1
+AC = nest.Create(neuronModel, AGCRatio*nRows*nCols, interNeuronParams)
+HC = nest.Create(neuronModel, HGCRatio*nRows*nCols, interNeuronParams)
 
 # Spike detectors
-GCSD = nest.Create('spike_detector',            nRows*  nCols)
-# BCSD = nest.Create('spike_detector', BGCRatio*  nRows*  nCols)
-# ACSD = nest.Create('spike_detector',          nACRows*nACCols)
-# HCSD = nest.Create('spike_detector',          nHCRows*nHCCols)
+GCSD = nest.Create('spike_detector',            nRows* nCols)
 
 # Connect the spike detectors to their respective populations
 nest.Connect(GC, GCSD, 'one_to_one')
-# nest.Connect(BC, BCSD, 'one_to_one')
-# nest.Connect(AC, ACSD, 'one_to_one')
-# nest.Connect(HC, HCSD, 'one_to_one')
 
 # Create the gif makers, for each population
 gifMakerList = []
@@ -140,28 +142,15 @@ ACMMs = []
 for i in range(len(neuronsToRecord)):
 
     ACMM = nest.Create('multimeter', params = {'withtime': True, 'interval': 0.01, 'record_from': ['V_m']})
-    row  = int(float(neuronsToRecord[i][0])/float(inhibRangeAC))
-    col  = int(float(neuronsToRecord[i][1])/float(inhibRangeAC))
-    nest.Connect(ACMM, [AC[row*nACCols + col]])
+    nest.Connect(ACMM, [AC[0*nRows*nCols + neuronsToRecord[i][0]*nCols + neuronsToRecord[i][1]]])
     ACMMs.append(ACMM)
 
 HCMMs = []
 for i in range(len(neuronsToRecord)):
 
     HCMM = nest.Create('multimeter', params = {'withtime': True, 'interval': 0.01, 'record_from': ['V_m']})
-    row  = int(float(neuronsToRecord[i][0]/inhibRangeHC))
-    col  = int(float(neuronsToRecord[i][1]/inhibRangeHC))
-    nest.Connect(HCMM, [HC[row*nHCCols + col]])
+    nest.Connect(HCMM, [HC[0*nRows*nCols + neuronsToRecord[i][0]*nCols + neuronsToRecord[i][1]]])
     HCMMs.append(HCMM)
-
-# # Create and connect the multimeter to plot
-# ACMMs = []
-# for i in range(len(neuronsToRecord)):
-#
-# 	ACMM = nest.Create('multimeter', params = {'withtime': True, 'interval': 0.01, 'record_from': ['V_m', 'g_ex', 'g_in']})
-# 	nest.Connect(ACMM, [AC[0*nRows*nCols + neuronsToRecord[i][0]*nCols + neuronsToRecord[i][1]]])
-# 	ACMMs.append(ACMM)
-
 
 
 ##############################################
@@ -186,8 +175,8 @@ for time in range(timeSteps):
                 distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
                 if distance < inputRadius:
                     noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                    inputStrength = (inputGain+noiseGain)*numpy.sqrt((inputRadius-distance)/inputRadius)
-                    nest.SetStatus([GC[i*nRows + j]], {'I_e': inputStrength})
+                    inputStrength = (inputGain+noiseGain)*inputIntensity(distance, 0.5*inputRadius)
+                    nest.SetStatus([GC[i*nRows + j]], {'I_e': inputStrength*0.88})
 
         # Bipolar cells input
         for i in range(nRows):
@@ -195,27 +184,30 @@ for time in range(timeSteps):
                 distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
                 if distance < inputRadius:
                     noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                    inputStrength = (inputGain+noiseGain)*numpy.sqrt((inputRadius-distance)/inputRadius)
+                    inputStrength = (inputGain+noiseGain)*inputIntensity(distance, 0.5*inputRadius)
                     for k in range(BGCRatio):
-                        nest.SetStatus([BC[k*nRows*nCols + i*nRows + j]], {'I_e': inputStrength*0.5})
+                        nest.SetStatus([BC[k*nRows*nCols + i*nRows + j]], {'I_e': inputStrength*0.69})
 
         # Amacrine cells input
-        for iAC in range(nACRows):
-            for jAC in range(nACCols):
+        for iAC in range(nRows):
+            for jAC in range(nCols):
                 distance = numpy.sqrt((inhibRangeAC*iAC-inputTarget[0])**2 + (inhibRangeAC*jAC-inputTarget[1])**2)
                 if distance < inputRadius:
                     noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                    inputStrength = (inputGain+noiseGain)*numpy.sqrt((inputRadius-distance)/inputRadius)
-                    nest.SetStatus([AC[iAC*nACRows + jAC]], {'I_e': inputStrength*0.8})
+                    inputStrength = (inputGain+noiseGain)*inputIntensity(distance, 0.5*inputRadius)
+                    for k in range(AGCRatio):
+                        nest.SetStatus([AC[k*nRows*nCols + i*nRows + j]], {'I_e': inputStrength*0.61})
 
         # Horizontal cells input
-        for iHC in range(nHCRows):
-            for jHC in range(nHCCols):
+        for iHC in range(nRows):
+            for jHC in range(nCols):
                 distance = numpy.sqrt((inhibRangeHC*iHC-inputTarget[0])**2 + (inhibRangeHC*jHC-inputTarget[1])**2)
                 if distance < inputRadius:
                     noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                    inputStrength = (inputGain+noiseGain)*numpy.sqrt((inputRadius-distance)/inputRadius)
-                    nest.SetStatus([HC[iHC*nHCRows + jHC]], {'I_e': inputStrength*0.4})
+                    inputStrength = (inputGain+noiseGain)*inputIntensity(distance, 0.5*inputRadius)
+                    for k in range(HGCRatio):
+                        nest.SetStatus([HC[k*nRows*nCols + i*nRows + j]], {'I_e': inputStrength*0.53})
+
 
     # Stop the stimulus
     if time == int(stopTime/stepDuration):
@@ -229,66 +221,62 @@ for time in range(timeSteps):
     target = []
     for i in range(nRows):
         for j in range(nCols):
-            for k in range(BGCRatio):
-                source = (k*nRows*nCols + i*nCols + j)
-                target = (                i*nCols + j)
+            for kBC in range(BGCRatio):
+                source = (kBC*nRows*nCols + i*nCols + j)
+                target = (                  i*nCols + j)
                 preSynVoltage  = nest.GetStatus([BC[source]], 'V_m')[0] - restPot
-                if i == inputTarget[0] and j == inputTarget[1]:
-                    postSynVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
-                    nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_GC']*preSynVoltage})
+                # if i == inputTarget[0] and j == inputTarget[1]: ?????
+                postSynVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
+                nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_GC']*preSynVoltage})
 
     # Connections from amacrine cells to ganglion cells
     source = []
     target = []
-    for i in range(-inhibRangeAC, inhibRangeAC+1):
-        for j in range(-inhibRangeAC, inhibRangeAC+1):
-            if i != 0 and j != 0:
-                distance = numpy.sqrt(i**2 + j**2)
-                inhibACWeight = connections['AC_To_GC']/distance
-                for iAC in range(nACRows):
-                    for jAC in range(nACCols):
-                        convertedRow = inhibRangeAC*iAC + i
-                        convertedCol = inhibRangeAC*jAC + j
-                        if 0 <= convertedRow < nRows and 0 <= convertedCol < nCols:
-                            source = (iAC       *nACCols + jAC         )
-                            target = (convertedRow*nCols + convertedCol)
-                            preSynVoltage  = nest.GetStatus([AC[source]], 'V_m')[0] - restPot
-                            postSynVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
-                            nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['AC_To_GC']*preSynVoltage})
+    for i2 in range(-inhibRangeAC, inhibRangeAC+1):
+        for j2 in range(-inhibRangeAC, inhibRangeAC+1):
+            if numpy.abs(i2) > nonInhibRangeAC and numpy.abs(j2) > nonInhibRangeAC:
+                for kAC in range(AGCRatio):
+                    for i in range (nRows):
+                        for j in range (nCols):
+                            if 0 < (i+i2) < nRows and 0 < (j+j2) < nCols:
+                                source = (kAC*nRows*nCols + i     *nCols +  j    )
+                                target = (                  (i+i2)*nCols + (j+j2))
+                                preSynVoltage  = nest.GetStatus([AC[source]], 'V_m')[0] - restPot
+                                postSynVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
+                                nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['AC_To_GC']*preSynVoltage})
 
     # Connections from horizontal cells to bipolar cells
     source = []
     target = []
-    for i in range(-inhibRangeHC, inhibRangeHC+1):
-        for j in range(-inhibRangeHC, inhibRangeHC+1):
-            if i != 0 and j != 0:
-                distance = numpy.sqrt(i**2 + j**2)
-                inhibHCWeight = connections['HC_To_BC']/distance
-                for iHC in range(nHCRows):
-                    for jHC in range(nHCCols):
-                        convertedRow = inhibRangeHC*iHC + i
-                        convertedCol = inhibRangeHC*jHC + j
-                        if 0 <= convertedRow < nRows and 0 <= convertedCol < nCols:
-                            for k in range(BGCRatio):
-                                source = (                iHC       *nHCCols + jHC         )
-                                target = (k*nRows*nCols + convertedRow*nCols + convertedCol)
-                                preSynVoltage  = nest.GetStatus([HC[source]], 'V_m')[0] - restPot
-                                postSynVoltage = nest.GetStatus([BC[target]], 'V_m')[0] - restPot
-                                nest.SetStatus([BC[target]], {'V_m': restPot + postSynVoltage + connections['HC_To_BC']*preSynVoltage})
+    for i2 in range(-inhibRangeHC, inhibRangeHC+1):
+        for j2 in range(-inhibRangeHC, inhibRangeHC+1):
+            if i2 != 0 and j2 != 0:
+                for kHC in range(HGCRatio):
+                    for kBC in range(BGCRatio):
+                        for i in range(nRows):
+                            for j in range(nCols):
+                                if 0 < (i+i2) < nRows and 0 < (j+j2) < nCols:
+                                    source = (kHC*nRows*nCols +  i    *nCols +  j    )
+                                    target = (kBC*nRows*nCols + (i+i2)*nCols + (j+j2))
+                                    preSynVoltage  = nest.GetStatus([HC[source]], 'V_m')[0] - restPot
+                                    postSynVoltage = nest.GetStatus([BC[target]], 'V_m')[0] - restPot
+                                    nest.SetStatus([BC[target]], {'V_m': restPot + postSynVoltage + connections['HC_To_BC']*preSynVoltage})
 
     # Connections from bipolar cells to amacrine cells
     source = []
     target = []
-    inhibACWeight = connections['AC_To_GC']/numpy.sqrt(i**2 + j**2)
-    for iAC in range(nACRows):
-        for jAC in range(nACCols):
-            if 0 <= inhibRangeAC*iAC < nRows and 0 <= inhibRangeAC*jAC < nCols:
-                for k in range(BGCRatio):
-                    source = (k*nRows*nCols + inhibRangeAC*iAC*nCols   + inhibRangeAC*jAC)
-                    target = (                             iAC*nACCols +              jAC)
-                    preSynVoltage  = nest.GetStatus([BC[source]], 'V_m')[0] - restPot
-                    postSynVoltage = nest.GetStatus([AC[target]], 'V_m')[0] - restPot
-                    nest.SetStatus([AC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_AC']*preSynVoltage})
+    for i2 in range(-excitRangeBC, excitRangeBC+1):
+        for j2 in range(-excitRangeBC, excitRangeBC+1):
+            for kAC in range(AGCRatio):
+                    for kBC in range(BGCRatio):
+                        for i in range(nRows):
+                            for j in range(nCols):
+                                if 0 < (i+i2) < nRows and 0 < (j+j2) < nCols:
+                                    source = (kBC*nRows*nCols +  i    *nCols +  j     )
+                                    target = (kAC*nRows*nCols + (i+i2)*nCols + (j+j2) )
+                                    preSynVoltage  = nest.GetStatus([BC[source]], 'V_m')[0] - restPot
+                                    postSynVoltage = nest.GetStatus([AC[target]], 'V_m')[0] - restPot
+                                    nest.SetStatus([AC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_AC']*preSynVoltage})
 
     # Run the simulation for one gif frame
     nest.Simulate(stepDuration)
@@ -332,7 +320,7 @@ for i in range(len(neuronsToRecord)):
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [threshPot, threshPot], 'k-', lw=1)
     plt.axis([0, simulationTime, -100, -25])
-    plt.ylabel('GC membr. pot. [mV]')
+    plt.ylabel('GC [mV]')
 
     # Plot the membrane potential of BC
     events = nest.GetStatus(BCMMs[i])[0]['events']
@@ -341,7 +329,7 @@ for i in range(len(neuronsToRecord)):
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
     plt.axis([0, simulationTime, -100, -25])
-    plt.ylabel('BC membr. pot. [mV]')
+    plt.ylabel('BC [mV]')
 
     # Plot the membrane potential of AC
     events = nest.GetStatus(ACMMs[i])[0]['events']
@@ -350,7 +338,7 @@ for i in range(len(neuronsToRecord)):
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
     plt.axis([0, simulationTime, -100, -25])
-    plt.ylabel('AC membr. pot. [mV]')
+    plt.ylabel('AC [mV]')
 
     # Plot the membrane potential of HC
     events = nest.GetStatus(HCMMs[i])[0]['events']
@@ -359,7 +347,7 @@ for i in range(len(neuronsToRecord)):
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
     plt.axis([0, simulationTime, -100, -25])
-    plt.ylabel('HC membr. pot. [mV]')
+    plt.ylabel('HC [mV]')
 
 # Show the plot
 plt.show()

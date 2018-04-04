@@ -64,9 +64,9 @@ class gifMaker:
 		# Create an animated gif of the output ; rescale firing rates to max value
 		if self.dimTuple[0] > 1:
 			for h in range(self.dimTuple[0]):
-				writeGif(thisTrialDir+'/'+self.name+'Seg'+str(h)+'.gif', 255.0*numpy.array(self.outImages[h])/self.maxAllTime, duration=durationTime)
+				writeGif(thisTrialDir+'/'+self.name+'Seg'+str(h)+'.gif', numpy.array(self.outImages[h])/self.maxAllTime, duration=durationTime)
 		else:
-			writeGif(thisTrialDir+'/'+self.name+'.gif', 255.0*numpy.array(self.outImages[0])/self.maxAllTime, duration=durationTime)
+			writeGif(thisTrialDir+'/'+self.name+'.gif', numpy.array(self.outImages[0])/self.maxAllTime, duration=durationTime)
 
 		# Reset the output images, for the next trials
 		self.outImages = [[] for i in range(self.dimTuple[0])]
