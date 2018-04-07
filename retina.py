@@ -16,7 +16,7 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime =   80.0    # [ms]
+simulationTime =   200.0    # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
 stopTime       =  10.0      # [ms]
@@ -30,10 +30,10 @@ inhibRangeHC    =    1       # [pixels]
 inhibRangeAC    =    2       # [pixels]
 nonInhibRangeHC =    0
 nonInhibRangeAC =    1       # [pixels]
-RC_GC           =    1       # [ms]
-RC_BC           =    35      # [ms]
-RC_AC           =    5       # [ms]
-RC_HC           =    40       # [ms]
+RC_GC           =    0.4       # 1[ms]
+RC_BC           =    10     # 40[ms]
+RC_AC           =    0.6       # 1.5[ms]
+RC_HC           =    2       # 50[ms]
 nRows           =   10       # [pixels]
 nCols           =   10       # [pixels]
 
@@ -41,7 +41,7 @@ nCols           =   10       # [pixels]
 inputTarget    =   (5, 5)            # [pixels]
 inputRadius    =    3                # [pixels]
 Voltage        =   180               # [mV]
-inputVoltage   =   0.05*Voltage      # [mV]
+inputVoltage   =   0.5*Voltage      # [mV]
 inputNoise     =   10.0
 def inputSpaceFrame(d, sigma):
     return numpy.exp(-d**2/(2*sigma**2))
@@ -63,18 +63,18 @@ neuronsToRecord = [(inputTarget[0]+  0,           inputTarget[1]+0),
 threshPot         = -55.0
 restPot           = -70.0  # should be 'E_l' but not sure
 neuronModel       = 'iaf_cond_alpha'
-neuronParams      = {'V_th': threshPot,      'tau_syn_ex': 50.0,'tau_syn_in': 50.0, 'V_reset': -70.0, 't_ref': 3.0}
-interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 10.0,'tau_syn_in': 10.0, 'V_reset': -70.0, 't_ref': 3.0}
+neuronParams      = {'V_th': threshPot,      'tau_syn_ex': 10.0,'tau_syn_in': 10.0, 'V_reset': -70.0, 't_ref': 3.5}
+interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,'tau_syn_in': 1.0, 'V_reset': -70.0, 't_ref': 3.5}
 
 # Connection parameters
 connections    = {
-    'BC_To_GC' :  35000,  # 100 [nS/spike]
-    'AC_To_GC' : -1500,  # -100 [nS/spike]
-    'HC_To_BC' : -40000 ,  # -25 [nS/spike]
-    'BC_To_AC' :  10 }  # 10 [nS/spike]
+    'BC_To_GC' :  900,  # 100 [nS/spike]
+    'AC_To_GC' : -50,  # -100 [nS/spike]
+    'HC_To_BC' : -900 ,  # -25 [nS/spike]
+    'BC_To_AC' :  0 }  # 10 [nS/spike]
 
 # Scale the weights, if needed
-weightScale    = 0.0005
+weightScale    = 0.05
 for key, value in connections.items():
     connections[key] = value*weightScale
 
@@ -244,10 +244,12 @@ for time in range(timeSteps):
             for kBC in range(BGCRatio):
                 source = (kBC*nRows*nCols + i*nCols + j)
                 target = (                  i*nCols + j)
-                preSynVoltage  = nest.GetStatus([BC[source]], 'V_m')[0] - restPot
-                # if i == inputTarget[0] and j == inputTarget[1]: ?????
+                #preSynVoltage  = nest.GetStatus([BC[source]], 'V_m')[0] - restPot
+                #postSynVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
+                #nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_GC']*preSynVoltage})
+                deltapreSynVoltage  = (nest.GetStatus([BC[source,time]], 'V_m')[0] - restPot)-(nest.GetStatus([BC[source,time-1]], 'V_m')[0] - restPot)
                 postSynVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
-                nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_GC']*preSynVoltage})
+                nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_GC']*deltapreSynVoltage})
 
     # Connections from amacrine cells to ganglion cells
     source = []
@@ -331,7 +333,7 @@ for i in range(len(neuronsToRecord)):
     plt.subplot(5, len(neuronsToRecord)+1, 0*(len(neuronsToRecord)+1)+i+1)
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -90, -20])
+    plt.axis([0, simulationTime, -70.2, -69.8])
     plt.ylabel('HC [mV]')
 
     # Plot the membrane potential of BC
@@ -340,7 +342,7 @@ for i in range(len(neuronsToRecord)):
     plt.subplot(5, len(neuronsToRecord)+1, 1*(len(neuronsToRecord)+1)+i+1)
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -80, -50])
+    plt.axis([0, simulationTime, -75, -67])
     plt.ylabel('BC [mV]')
 
     # Plot the membrane potential of AC
@@ -349,7 +351,7 @@ for i in range(len(neuronsToRecord)):
     plt.subplot(5, len(neuronsToRecord)+1, 2*(len(neuronsToRecord)+1)+i+1)
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -80, -50])
+    plt.axis([0, simulationTime, -75, -30])
     plt.ylabel('AC [mV]')
 
     # Plot the membrane potential of GC
@@ -358,7 +360,7 @@ for i in range(len(neuronsToRecord)):
     plt.subplot(5, len(neuronsToRecord)+1, 3*(len(neuronsToRecord)+1)+i+1)
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [threshPot, threshPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -80, -60])
+    plt.axis([0, simulationTime, -100, -50])
     plt.ylabel('GC [mV]')
 
     # Do the rasterplot
