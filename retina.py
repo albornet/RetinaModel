@@ -16,7 +16,7 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime =  170.0    # [ms]
+simulationTime =  100.0    # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
 stopTime       =  10.0      # [ms]
@@ -26,16 +26,16 @@ BGCRatio        =    4
 AGCRatio        =    5
 HGCRatio        =    1
 excitRangeBC    =    1
-inhibRangeHC    =    1       # [pixels]
-inhibRangeAC    =    2       # [pixels]
+inhibRangeHC    =    1            # [pixels]
+inhibRangeAC    =    2            # [pixels]
 nonInhibRangeHC =    0
-nonInhibRangeAC =    1       # [pixels]
-RC_GC           =    1.88*10**-8     # 0.4[ms]
-RC_BC           =    9.8*10**-8    # 10[ms]
-RC_AC           =    17*10**-8    # 0.65[ms]
+nonInhibRangeAC =    1            # [pixels]
+RC_GC           =    1.88*10**-8  # 0.4[ms]
+RC_BC           =    17*10**-8   # 10[ms]
+RC_AC           =    9.8*10**-8    # 0.65[ms]
 RC_HC           =    27*10**-8    # 12[ms]
-nRows           =   10       # [pixels]
-nCols           =   10       # [pixels]
+nRows           =   10            # [pixels]
+nCols           =   10            # [pixels]
 
 # Input parameters
 inputTarget    =   (5, 5)            # [pixels]
@@ -68,10 +68,10 @@ interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,'tau_syn_in': 1.0
 
 # Connection parameters
 connections    = {
-    'BC_To_GC' :  4000,  # 2000 [nS/spike]
-    'AC_To_GC' : -550,  # -400 [nS/spike]
-    'HC_To_BC' : -100 ,  # -100 [nS/spike]
-    'BC_To_AC' :  0.2 }  # 0.2 [nS/spike]
+    'BC_To_GC' :  4000,     # 4000 [nS/spike]
+    'AC_To_GC' : -400,      # -400 [nS/spike]
+    'HC_To_BC' : -100 ,     # -100 [nS/spike]
+    'BC_To_AC' :  1 }       # 1 [nS/spike]
 
 # Scale the weights, if needed
 weightScale    = 0.001
