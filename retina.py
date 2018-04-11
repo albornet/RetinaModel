@@ -16,10 +16,10 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime =  100.0    # [ms]
+simulationTime =  150.0    # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
-stopTime       =  10.0      # [ms]
+stopTime       =  100.0      # [ms]
 
 # Retina parameters
 BGCRatio        =    4
@@ -41,7 +41,7 @@ nCols           =   10            # [pixels]
 inputTarget    =   (5, 5)            # [pixels]
 inputRadius    =    3                # [pixels]
 Voltage        =   180               # [mV]
-inputVoltage   =   0.08*Voltage      # [mV]
+inputVoltage   =   0.016*Voltage     # [mV] dilation of inPut voltage 1=0.008
 inputNoise     =   10.0
 def inputSpaceFrame(d, sigma):
     return numpy.exp(-d**2/(2*sigma**2))
@@ -68,10 +68,10 @@ interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,'tau_syn_in': 1.0
 
 # Connection parameters
 connections    = {
-    'BC_To_GC' :  4000,     # 4000 [nS/spike]
-    'AC_To_GC' : -400,      # -400 [nS/spike]
+    'BC_To_GC' :  3000,     # 4000 [nS/spike]
+    'AC_To_GC' : -1300,      # -400 [nS/spike]
     'HC_To_BC' : -100 ,     # -100 [nS/spike]
-    'BC_To_AC' :  1 }       # 1 [nS/spike]
+    'BC_To_AC' :  100 }       # 1 [nS/spike]
 
 # Scale the weights, if needed
 weightScale    = 0.001
@@ -351,7 +351,7 @@ for i in range(len(neuronsToRecord)):
     plt.subplot(5, len(neuronsToRecord)+1, 0*(len(neuronsToRecord)+1)+i+1)
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -75, -30])
+    plt.axis([0, simulationTime, min(events['V_m'])-5, max(events['V_m']+5)])
     plt.ylabel('HC [mV]')
 
     # Plot the membrane potential of BC
@@ -360,7 +360,7 @@ for i in range(len(neuronsToRecord)):
     plt.subplot(5, len(neuronsToRecord)+1, 1*(len(neuronsToRecord)+1)+i+1)
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -75, -30])
+    plt.axis([0, simulationTime, min(events['V_m'])-5, max(events['V_m']+5)])
     plt.ylabel('BC [mV]')
 
     # Plot the membrane potential of AC
@@ -369,7 +369,7 @@ for i in range(len(neuronsToRecord)):
     plt.subplot(5, len(neuronsToRecord)+1, 2*(len(neuronsToRecord)+1)+i+1)
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -75, -10])
+    plt.axis([0, simulationTime, min(events['V_m'])-5, max(events['V_m']+5)])
     plt.ylabel('AC [mV]')
 
     # Plot the membrane potential of GC
@@ -378,7 +378,7 @@ for i in range(len(neuronsToRecord)):
     plt.subplot(5, len(neuronsToRecord)+1, 3*(len(neuronsToRecord)+1)+i+1)
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [threshPot, threshPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -140, -50])
+    plt.axis([0, simulationTime, min(events['V_m'])-5, max(events['V_m']+5)])
     plt.ylabel('GC [mV]')
 
     # Do the rasterplot
