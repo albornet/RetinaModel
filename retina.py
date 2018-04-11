@@ -16,7 +16,7 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime =  40.0    # [ms]
+simulationTime =  170.0    # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
 stopTime       =  10.0      # [ms]
@@ -30,10 +30,10 @@ inhibRangeHC    =    1       # [pixels]
 inhibRangeAC    =    2       # [pixels]
 nonInhibRangeHC =    0
 nonInhibRangeAC =    1       # [pixels]
-RC_GC           =    0.4       # 1[ms]
-RC_BC           =    10     # 40[ms]
-RC_AC           =    0.6       # 1.5[ms]
-RC_HC           =    12       # 50[ms]
+RC_GC           =    1.88*10**-8     # 0.4[ms]
+RC_BC           =    9.8*10**-8    # 10[ms]
+RC_AC           =    17*10**-8    # 0.65[ms]
+RC_HC           =    27*10**-8    # 12[ms]
 nRows           =   10       # [pixels]
 nCols           =   10       # [pixels]
 
@@ -41,7 +41,7 @@ nCols           =   10       # [pixels]
 inputTarget    =   (5, 5)            # [pixels]
 inputRadius    =    3                # [pixels]
 Voltage        =   180               # [mV]
-inputVoltage   =   0.05*Voltage      # [mV]
+inputVoltage   =   0.08*Voltage      # [mV]
 inputNoise     =   10.0
 def inputSpaceFrame(d, sigma):
     return numpy.exp(-d**2/(2*sigma**2))
@@ -68,10 +68,10 @@ interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,'tau_syn_in': 1.0
 
 # Connection parameters
 connections    = {
-    'BC_To_GC' :  2000,  # 100 [nS/spike]
-    'AC_To_GC' : -400,  # -100 [nS/spike]
-    'HC_To_BC' : -100 ,  # -25 [nS/spike]
-    'BC_To_AC' :  0 }  # 10 [nS/spike]
+    'BC_To_GC' :  4000,  # 2000 [nS/spike]
+    'AC_To_GC' : -550,  # -400 [nS/spike]
+    'HC_To_BC' : -100 ,  # -100 [nS/spike]
+    'BC_To_AC' :  0.2 }  # 0.2 [nS/spike]
 
 # Scale the weights, if needed
 weightScale    = 0.001
@@ -176,10 +176,10 @@ if not os.path.exists(figureDir):
 # Calculate ions mobility delay
 def delay(distance,voltage):                                             # [um][mV]
     return ((distance*10**-6)**2/((voltage*10**-3)*363*10**-9))*10**3    # [ms]
-delayGC = delay(5,Voltage)
-delayAC = delay(15,Voltage)
-delayBC = delay(20,Voltage)
-delayHC = delay(25,Voltage)
+delayGC = delay(12,Voltage)
+delayAC = delay(37,Voltage)
+delayBC = delay(49,Voltage)
+delayHC = delay(61,Voltage)
 
 # Simulate the network
 timeSteps = int(simulationTime/stepDuration)
@@ -195,7 +195,7 @@ for time in range(timeSteps):
                 StimGC= inputTimeFrame(RC_GC, inputStrength, time, startTime + delayGC, stopTime + delayGC)
                 target        = (                 i*nCols + j)
                 GCVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
-                nest.SetStatus([GC[target]], {'V_m': restPot + GCVoltage + StimGC*0.88})
+                nest.SetStatus([GC[target]], {'V_m': restPot + GCVoltage + StimGC*0.73})
 
     # Amacrine cells input
     for i in range(nRows):
@@ -208,7 +208,7 @@ for time in range(timeSteps):
                 for k in range(AGCRatio):
                     target    = (k*nRows*nCols + i*nRows + j)
                     ACVoltage = nest.GetStatus([AC[target]], 'V_m')[0] - restPot
-                    nest.SetStatus([AC[target]], {'V_m': restPot + ACVoltage + StimAC*0.69})
+                    nest.SetStatus([AC[target]], {'V_m': restPot + ACVoltage + StimAC*0.42})
 
     # Bipolar cells input
     for i in range(nRows):
@@ -221,7 +221,7 @@ for time in range(timeSteps):
                 for k in range(BGCRatio):
                     target    = (k*nRows*nCols + i*nRows + j)
                     BCVoltage = nest.GetStatus([BC[target]], 'V_m')[0]- restPot
-                    nest.SetStatus([BC[target]], {'V_m': restPot + BCVoltage + StimBC*0.61})
+                    nest.SetStatus([BC[target]], {'V_m': restPot + BCVoltage + StimBC*0.31})
 
     # Horizontal cells input
     for i in range(nRows):
@@ -234,7 +234,7 @@ for time in range(timeSteps):
                 for k in range(HGCRatio):
                     target    = (k*nRows*nCols + i*nRows + j)
                     HCVoltage = nest.GetStatus([HC[target]], 'V_m')[0] - restPot
-                    nest.SetStatus([HC[target]], {'V_m': restPot + HCVoltage + StimHC*0.53})
+                    nest.SetStatus([HC[target]], {'V_m': restPot + HCVoltage + StimHC*0.25})
 
     # Connections from bipolar cells to the retinal ganglion cells
     source = []
@@ -369,7 +369,7 @@ for i in range(len(neuronsToRecord)):
     plt.subplot(5, len(neuronsToRecord)+1, 2*(len(neuronsToRecord)+1)+i+1)
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [restPot, restPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -75, -30])
+    plt.axis([0, simulationTime, -75, -10])
     plt.ylabel('AC [mV]')
 
     # Plot the membrane potential of GC
@@ -378,7 +378,7 @@ for i in range(len(neuronsToRecord)):
     plt.subplot(5, len(neuronsToRecord)+1, 3*(len(neuronsToRecord)+1)+i+1)
     plt.plot(tPlot, events['V_m'])
     plt.plot([0, simulationTime], [threshPot, threshPot], 'k-', lw=1)
-    plt.axis([0, simulationTime, -100, -50])
+    plt.axis([0, simulationTime, -140, -50])
     plt.ylabel('GC [mV]')
 
     # Do the rasterplot
@@ -397,10 +397,10 @@ inputShapeAC = []
 inputShapeGC = []
 for time in range(timeSteps):
     inputTime.append(time)
-    inputShapeHC.append(inputTimeFrame(RC_HC, 0.53, time, startTime + delayHC, stopTime + delayHC))
-    inputShapeBC.append(inputTimeFrame(RC_BC, 0.61, time, startTime + delayBC, stopTime + delayBC))
-    inputShapeAC.append(inputTimeFrame(RC_AC, 0.69, time, startTime + delayAC, stopTime + delayAC))
-    inputShapeGC.append(inputTimeFrame(RC_GC, 0.88, time, startTime + delayGC, stopTime + delayGC))
+    inputShapeHC.append(inputTimeFrame(RC_HC, 0.25, time, startTime + delayHC, stopTime + delayHC))
+    inputShapeBC.append(inputTimeFrame(RC_BC, 0.31, time, startTime + delayBC, stopTime + delayBC))
+    inputShapeAC.append(inputTimeFrame(RC_AC, 0.42, time, startTime + delayAC, stopTime + delayAC))
+    inputShapeGC.append(inputTimeFrame(RC_GC, 0.73, time, startTime + delayGC, stopTime + delayGC))
 
 plt.subplot(5,len(neuronsToRecord)+1, 1*(len(neuronsToRecord)+1))
 plt.plot(inputTime, 1.0*numpy.array(inputShapeHC))
