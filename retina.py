@@ -16,7 +16,7 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime =  100.0    # [ms]
+simulationTime =  70.0    # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
 stopTime       =  10.0      # [ms]
@@ -36,15 +36,15 @@ def getRC(d, D):                         #[um]
 RC_GC           =   getRC(12,10)*10**3   # 0.4[ms]
 RC_BC           =   getRC(49,5)*10**3    # 10[ms]
 RC_AC           =   getRC(30,5)*10**3    # 0.65[ms]
-RC_HC           =   getRC(61,10)*10**3   # 12[ms]
+RC_HC           =   getRC(64,10)*10**3   # 12[ms]
 nRows           =   10                   # [pixels]
 nCols           =   10                   # [pixels]
 
 # Input parameters
 inputTarget    =   (5, 5)            # [pixels]
 inputRadius    =    3                # [pixels]
-Voltage        =   180              # [mV]
-inputVoltage   =   0.06*Voltage     # [mV]
+Voltage        =   180             # [mV]
+inputVoltage   =   0.05*Voltage     # [mV]
 inputNoise     =   10.0
 def inputSpaceFrame(d, sigma):
     return numpy.exp(-d**2/(2*sigma**2))
@@ -72,9 +72,9 @@ interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,'tau_syn_in': 1.0
 # Connection parameters
 connections    = {
     'BC_To_GC' :  4000,     # 4000 [nS/spike]
-    'AC_To_GC' : -1300,     # -400 [nS/spike]
-    'HC_To_BC' : -100 ,     # -100 [nS/spike]
-    'BC_To_AC' :  100 }     # 1 [nS/spike]
+    'AC_To_GC' : -1300,     # -1300 [nS/spike]
+    'HC_To_BC' : -10 ,      # -10 [nS/spike]
+    'BC_To_AC' :  100 }     # 100 [nS/spike]
 
 # Scale the weights, if needed
 weightScale    = 0.001
@@ -116,21 +116,21 @@ gifMakerList = []
 # ACMMs = []
 # HCMMs = []
 #
-# # Bipolar cells multimeters (vesicles fusion proportionnal to their potential)
+# # Bipolar cells multimeters (vesicles fusion proportionnal to their dpotential/dt)
 # for i in range(len(BCSD)):
 #
 # 	BCMM = nest.Create('multimeter', params = {'withtime': True, 'interval': stepDuration, 'record_from': ['V_m']})
 # 	nest.Connect(BCMM, [BC[i]])
 # 	BCMMs.append(BCMM)
 #
-# # Amacrine cells multimeters (vesicles fusion proportionnal to their potential)
+# # Amacrine cells multimeters (vesicles fusion proportionnal to their dpotential/dt)
 # for i in range(len(neuronsToRecord)):
 #
 # 	ACMM = nest.Create('multimeter', params = {'withtime': True, 'interval': stepDuration, 'record_from': ['V_m']})
 # 	nest.Connect(ACMM, [AC[i]])
 # 	ACMMs.append(ACMM)
 #
-# # Horizontal cells multimeters (vesicles fusion proportionnal to their potential)
+# # Horizontal cells multimeters (vesicles fusion proportionnal to their dpotential/dt)
 # for i in range(len(neuronsToRecord)):
 #
 # 	HCMM = nest.Create('multimeter', params = {'withtime': True, 'interval': stepDuration, 'record_from': ['V_m']})
@@ -179,18 +179,13 @@ if not os.path.exists(figureDir):
 # Calculate ions mobility delay
 def d0(Voltage):                                                                     #[mV]
     return (-6*10**-8*(Voltage**3))+(0.0002*(Voltage**2))+(0.1471*Voltage)-6.2835    #[um]
-
 def delay(distance,voltage):                                                        # [um][mV]
     #return ((distance*10**-6)**2/((voltage*10**-3)*363*10**-9))*10**3              # [ms] if charge carrier speed cst
     return ((((d0(voltage)*10**-6)**2)/(363*10**-9*voltage*10**-3))*(numpy.exp((distance*10**-6)/(d0(voltage)*10**-6))-1))*10**3
 delayGC = delay(12,Voltage)
-print (delayGC)
 delayAC = delay(30,Voltage)
-print (delayAC)
 delayBC = delay(49,Voltage)
-print (delayBC)
-delayHC = delay(61,Voltage)
-print (delayHC)
+delayHC = delay(64,Voltage)
 
 # Simulate the network
 timeSteps = int(simulationTime/stepDuration)
@@ -355,6 +350,11 @@ for i in range(len(neuronsToRecord)):
     recRow = neuronsToRecord[i][0]
     recCol = neuronsToRecord[i][1]
     spikes = nest.GetStatus([GCSD[recRow*nRows+recCol]], keys='events')[0]['times']
+    Spikes = numpy.asarray(spikes)
+    SL     = numpy.sum(numpy.array([x for x in Spikes if x<10]))/10
+    ML     = numpy.sum(numpy.array([x for x in Spikes if x>40 and x<120]))/(120-40)
+    print(SL)
+    print(ML)
 
     # Plot the membrane potential of HC
     events = nest.GetStatus(HCMMs[i])[0]['events']
