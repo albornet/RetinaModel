@@ -16,7 +16,7 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime =  100.0    # [ms]
+simulationTime =  70.0    # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
 stopTime       =  10.0      # [ms]
@@ -36,7 +36,7 @@ def getRC(d, D):                         #[um]
 RC_GC           =   getRC(12,10)*10**3   # 0.4[ms]
 RC_BC           =   getRC(49,5)*10**3    # 10[ms]
 RC_AC           =   getRC(30,5)*10**3    # 0.65[ms]
-RC_HC           =   getRC(61,10)*10**3   # 12[ms]
+RC_HC           =   getRC(64,10)*10**3   # 12[ms]
 nRows           =   10                   # [pixels]
 nCols           =   10                   # [pixels]
 
@@ -44,7 +44,7 @@ nCols           =   10                   # [pixels]
 inputTarget    =   (5, 5)            # [pixels]
 inputRadius    =    3                # [pixels]
 Voltage        =   180              # [mV]
-inputVoltage   =   0.06*Voltage     # [mV]
+inputVoltage   =   0.05*Voltage     # [mV]
 inputNoise     =   10.0
 def inputSpaceFrame(d, sigma):
     return numpy.exp(-d**2/(2*sigma**2))
@@ -189,7 +189,7 @@ delayAC = delay(30,Voltage)
 print (delayAC)
 delayBC = delay(49,Voltage)
 print (delayBC)
-delayHC = delay(61,Voltage)
+delayHC = delay(64,Voltage)
 print (delayHC)
 
 # Simulate the network
