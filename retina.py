@@ -16,10 +16,10 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime =  70.0    # [ms]
+simulationTime =  190.0    # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
-stopTime       =  10.0      # [ms]
+stopTime       =  50.0      # [ms]
 
 # Retina parameters
 BGCRatio        =    4
@@ -32,19 +32,26 @@ nonInhibRangeHC =    0
 nonInhibRangeAC =    1            # [pixels]
 
 def getRC(d, D):                         #[um]
-    return (0.7*d*10**-6 + 0.7*4*numpy.pi*(D*10**-6)**2) * ((0.1*d*10**-6)**-1 + (0.01*4*numpy.pi*(D*10**-6)**2)**-1)**-1
-RC_GC           =   getRC(12,10)*10**3   # 0.4[ms]
+    #return (0.7*d*10**-6 + 0.7*4*numpy.pi*(D*10**-6)**2)     * ((0.1*d*10**-6)**-1 + (0.01*4*numpy.pi*(D*10**-6)**2)**-1)**-1
+    r= 40000000000000                                #[um]
+    return  (0.7*d*10**-6 + 0.7*2*numpy.pi*r*10**-6*d*10**-6) * ((0.1*d*10**-6)**-1 + (0.01*2*numpy.pi*r*10**-6*d*10**-6)**-1)**-1
+
+RC_GC           =   getRC(10,10)*10**3   # 0.4[ms]
+print (RC_GC)
 RC_BC           =   getRC(49,5)*10**3    # 10[ms]
+print (RC_BC)
 RC_AC           =   getRC(30,5)*10**3    # 0.65[ms]
+print (RC_AC)
 RC_HC           =   getRC(64,10)*10**3   # 12[ms]
+print (RC_HC)
 nRows           =   10                   # [pixels]
 nCols           =   10                   # [pixels]
 
 # Input parameters
 inputTarget    =   (5, 5)            # [pixels]
-inputRadius    =    3                # [pixels]
-Voltage        =   180             # [mV]
-inputVoltage   =   0.05*Voltage     # [mV]
+inputRadius    =    4                # [pixels]
+Voltage        =   200               # [mV]
+inputVoltage   =   0.05*Voltage      # [mV]
 inputNoise     =   10.0
 def inputSpaceFrame(d, sigma):
     return numpy.exp(-d**2/(2*sigma**2))
@@ -71,13 +78,13 @@ interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,'tau_syn_in': 1.0
 
 # Connection parameters
 connections    = {
-    'BC_To_GC' :  4000,     # 4000 [nS/spike]
-    'AC_To_GC' : -1300,     # -1300 [nS/spike]
-    'HC_To_BC' : -10 ,      # -10 [nS/spike]
-    'BC_To_AC' :  100 }     # 100 [nS/spike]
+    'BC_To_GC' : 700,      # 7000 [nS/spike]
+    'AC_To_GC' : -700,     # -7000 [nS/spike]
+    'HC_To_BC' : -70 ,     # -700 [nS/spike]
+    'BC_To_AC' : 70}       # 700 [nS/spike]
 
 # Scale the weights, if needed
-weightScale    = 0.001
+weightScale    = 0.0002    # 0.0005
 for key, value in connections.items():
     connections[key] = value*weightScale
 
@@ -181,8 +188,8 @@ def d0(Voltage):                                                                
     return (-6*10**-8*(Voltage**3))+(0.0002*(Voltage**2))+(0.1471*Voltage)-6.2835    #[um]
 def delay(distance,voltage):                                                        # [um][mV]
     #return ((distance*10**-6)**2/((voltage*10**-3)*363*10**-9))*10**3              # [ms] if charge carrier speed cst
-    return ((((d0(voltage)*10**-6)**2)/(363*10**-9*voltage*10**-3))*(numpy.exp((distance*10**-6)/(d0(voltage)*10**-6))-1))*10**3
-delayGC = delay(12,Voltage)
+    return ((((d0(voltage)*10**-6)**2)/(363*10**-9*voltage*10**-3))*(numpy.exp((distance*10**-6)/(d0(voltage)*10**-6))-1))
+delayGC = delay(10,Voltage)
 delayAC = delay(30,Voltage)
 delayBC = delay(49,Voltage)
 delayHC = delay(64,Voltage)
@@ -201,7 +208,7 @@ for time in range(timeSteps):
                 StimGC= inputTimeFrame(RC_GC, inputStrength, time, startTime + delayGC, stopTime + delayGC)
                 target        = (                 i*nCols + j)
                 GCVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
-                nest.SetStatus([GC[target]], {'V_m': restPot + GCVoltage + StimGC*0.73})
+                nest.SetStatus([GC[target]], {'V_m': restPot + GCVoltage + StimGC*0.9})
 
     # Amacrine cells input
     for i in range(nRows):
@@ -254,7 +261,7 @@ for time in range(timeSteps):
                 deltaPreSynVoltage    = (preSynVoltage - BCLastVoltage[source])/stepDuration
                 if deltaPreSynVoltage > 0.0:
                     postSynVoltage    = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
-                    nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_GC']*deltaPreSynVoltage})
+                    nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_GC']*preSynVoltage})
 
     # Connections from amacrine cells to ganglion cells
     source = []
@@ -272,7 +279,7 @@ for time in range(timeSteps):
                                 deltaPreSynVoltage    = (preSynVoltage - ACLastVoltage[source])/stepDuration
                                 if deltaPreSynVoltage > 0.0:
                                     postSynVoltage    = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
-                                    nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['AC_To_GC']*deltaPreSynVoltage})
+                                    nest.SetStatus([GC[target]], {'V_m': restPot + postSynVoltage + connections['AC_To_GC']*preSynVoltage})
 
     # Connections from horizontal cells to bipolar cells
     source = []
@@ -291,7 +298,7 @@ for time in range(timeSteps):
                                     deltaPreSynVoltage    = (preSynVoltage - HCLastVoltage[source])/stepDuration
                                     if deltaPreSynVoltage > 0.0:
                                         postSynVoltage    = nest.GetStatus([BC[target]], 'V_m')[0] - restPot
-                                        nest.SetStatus([BC[target]], {'V_m': restPot + postSynVoltage + connections['HC_To_BC']*deltaPreSynVoltage})
+                                        nest.SetStatus([BC[target]], {'V_m': restPot + postSynVoltage + connections['HC_To_BC']*preSynVoltage})
 
     # Connections from bipolar cells to amacrine cells
     source = []
@@ -309,7 +316,7 @@ for time in range(timeSteps):
                                     deltaPreSynVoltage    = (preSynVoltage - BCLastVoltage[source])/stepDuration
                                     if deltaPreSynVoltage > 0.0:
                                         postSynVoltage    = nest.GetStatus([AC[target]], 'V_m')[0] - restPot
-                                        nest.SetStatus([AC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_AC']*deltaPreSynVoltage})
+                                        nest.SetStatus([AC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_AC']*preSynVoltage})
 
     # Update the last time-step presynaptic voltages
     for i in range(nRows):
@@ -353,8 +360,8 @@ for i in range(len(neuronsToRecord)):
     Spikes = numpy.asarray(spikes)
     SL     = numpy.sum(numpy.array([x for x in Spikes if x<10]))/10
     ML     = numpy.sum(numpy.array([x for x in Spikes if x>40 and x<120]))/(120-40)
-    print(SL)
-    print(ML)
+    #print(SL)
+    #print(ML)
 
     # Plot the membrane potential of HC
     events = nest.GetStatus(HCMMs[i])[0]['events']
@@ -411,7 +418,7 @@ for time in range(timeSteps):
     inputShapeHC.append(inputTimeFrame(RC_HC, 0.25, time, startTime + delayHC, stopTime + delayHC))
     inputShapeBC.append(inputTimeFrame(RC_BC, 0.31, time, startTime + delayBC, stopTime + delayBC))
     inputShapeAC.append(inputTimeFrame(RC_AC, 0.42, time, startTime + delayAC, stopTime + delayAC))
-    inputShapeGC.append(inputTimeFrame(RC_GC, 0.73, time, startTime + delayGC, stopTime + delayGC))
+    inputShapeGC.append(inputTimeFrame(RC_GC, 0.9, time, startTime + delayGC, stopTime + delayGC))
 
 plt.subplot(5,len(neuronsToRecord)+1, 1*(len(neuronsToRecord)+1))
 plt.plot(inputTime, 1.0*numpy.array(inputShapeHC))
