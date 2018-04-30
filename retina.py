@@ -7,15 +7,14 @@ nest.ResetKernel()
 nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'print_time': True})
 
 # To do:
-# gap jucntion for GC then for every layer
-# save spikestimes + SL/ML/LL
+# SAVE spikestimes + SL/ML/LL
 
 ##########################
 ### Set the parameters ###
 ##########################
 
 # Simulation parameters
-simulationTime =  20.0    # [ms]
+simulationTime =  20.0      # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
 stopTime       =  50.0      # [ms]
@@ -66,9 +65,8 @@ neuronsToRecord = [(inputTarget[0]+  0,           inputTarget[1]+0),
 
 # Neurons custom parameters
 threshPot         = -55.0
-restPot           = -70.0  # should be 'E_l' but not sure
-neuronModel       = 'hh_psc_alpha_gap'
-interneuronModel  = 'iaf_cond_alpha'
+restPot           = -70.0  # more or less equal for all populations taking into account std in litterature
+neuronModel       = 'iaf_cond_alpha'
 neuronParams      = {'V_th': threshPot,      'tau_syn_ex': 10.0,'tau_syn_in': 10.0, 'V_reset': -70.0, 't_ref': 3.5}
 interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,'tau_syn_in': 1.0, 'V_reset': -70.0, 't_ref': 3.5}
 
@@ -77,11 +75,8 @@ connections    = {
     'BC_To_GC' : 700,      # 7000 [nS/spike]
     'AC_To_GC' : -700,     # -7000 [nS/spike]
     'HC_To_BC' : -70 ,     # -700 [nS/spike]
-    'BC_To_AC' : 70  ,     # 700 [nS/spike]
-    'GC_gap'   : 0.7 ,
-    'AC_gap'   : 0.7 ,
-    'HC_gap'   : 0.7 ,
-    'BC_gap'   : 0.7}
+    'BC_To_AC' : 70       # 700 [nS/spike]
+    }
 
 # Scale the weights, if needed
 weightScale    = 0.0002    # 0.0005
@@ -94,10 +89,10 @@ for key, value in connections.items():
 #########################
 
 # Cells
-GC = nest.Create(neuronModel,               nRows*nCols,      neuronParams)
-BC = nest.Create(interneuronModel, BGCRatio*nRows*nCols, interNeuronParams)
-AC = nest.Create(interneuronModel, AGCRatio*nRows*nCols, interNeuronParams)
-HC = nest.Create(interneuronModel, HGCRatio*nRows*nCols, interNeuronParams)
+GC = nest.Create(neuronModel,          nRows*nCols,      neuronParams)
+BC = nest.Create(neuronModel, BGCRatio*nRows*nCols, interNeuronParams)
+AC = nest.Create(neuronModel, AGCRatio*nRows*nCols, interNeuronParams)
+HC = nest.Create(neuronModel, HGCRatio*nRows*nCols, interNeuronParams)
 
 # Previous membrane potential (previous time-step) ; initialized at resting pot.
 BCLastVoltage = numpy.zeros((len(BC),))
@@ -249,15 +244,6 @@ for time in range(timeSteps):
                     HCVoltage = nest.GetStatus([HC[target]], 'V_m')[0] - restPot
                     nest.SetStatus([HC[target]], {'V_m': restPot + HCVoltage + StimHC*0.25})
 
-    # Gap junctions between GC
-    source = []
-    target = []
-        for i in range (nRows):
-            for j in range (nCols):
-                    source = (nRows*nCols + i*nCols + j)
-                    target = (              i*nCols + j)
-                    nest.Connect(source, target, {'rule':'one_to_one,make_symmetric':True},{'model':'gapjunction','weight':connections['GC_gap']})
-
     # Connections from bipolar cells to the retinal ganglion cells
     source = []
     target = []
@@ -369,14 +355,14 @@ for i in range(len(neuronsToRecord)):
     Spikes = numpy.asarray(spikes)
     SL     = numpy.sum(numpy.array([x for x in Spikes if x<10]))/10
     ML     = numpy.sum(numpy.array([x for x in Spikes if x>40 and x<120]))/(120-40)
-    print(SL)
-    print(ML)
-    print (Spikes)
-    f = open('SimFigures/Spikes.txt', 'w')
-    f.write('\n'+'Spikes times:')
-    for i in range(Spikes.size):
-    	f.write('\n'+str(Spikes[i]))
-    f.close()
+    #print(SL)
+    #print(ML)
+    #print (Spikes)
+    #f = open('SimFigures/Spikes.txt', 'w')
+    #f.write('\n'+'Spikes times:')
+    #for i in range(Spikes.size):
+    #	f.write('\n'+str(Spikes[i]))
+    #f.close()
 
     # Plot the membrane potential of HC
     events = nest.GetStatus(HCMMs[i])[0]['events']
@@ -445,5 +431,5 @@ plt.subplot(5,len(neuronsToRecord)+1, 4*(len(neuronsToRecord)+1))
 plt.plot(inputTime, 1.0*numpy.array(inputShapeGC))
 
 # Show % save the plot
-plt.savefig('SimFigures/Raster.eps', format='eps', dpi=1000)
+#plt.savefig('SimFigures/Raster.eps', format='eps', dpi=1000)
 plt.show()
