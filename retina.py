@@ -7,16 +7,15 @@ nest.ResetKernel()
 nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'print_time': True})
 
 # To do:
-# all interneurons non spiking
-# voltage simulation instead of current
-
+# gap jucntion for GC then for every layer
+# save spikestimes + SL/ML/LL
 
 ##########################
 ### Set the parameters ###
 ##########################
 
 # Simulation parameters
-simulationTime =  190.0    # [ms]
+simulationTime =  20.0    # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
 stopTime       =  50.0      # [ms]
@@ -28,7 +27,7 @@ HGCRatio        =    1
 excitRangeBC    =    1
 inhibRangeHC    =    1            # [pixels]
 inhibRangeAC    =    2            # [pixels]
-nonInhibRangeHC =    0
+nonInhibRangeHC =    0            # [pixels]
 nonInhibRangeAC =    1            # [pixels]
 
 def getRC(d, D):                         #[um]
@@ -37,20 +36,16 @@ def getRC(d, D):                         #[um]
     return  (0.7*d*10**-6 + 0.7*2*numpy.pi*r*10**-6*d*10**-6) * ((0.1*d*10**-6)**-1 + (0.01*2*numpy.pi*r*10**-6*d*10**-6)**-1)**-1
 
 RC_GC           =   getRC(10,10)*10**3   # 0.4[ms]
-print (RC_GC)
 RC_BC           =   getRC(49,5)*10**3    # 10[ms]
-print (RC_BC)
 RC_AC           =   getRC(30,5)*10**3    # 0.65[ms]
-print (RC_AC)
 RC_HC           =   getRC(64,10)*10**3   # 12[ms]
-print (RC_HC)
 nRows           =   10                   # [pixels]
 nCols           =   10                   # [pixels]
 
 # Input parameters
 inputTarget    =   (5, 5)            # [pixels]
 inputRadius    =    4                # [pixels]
-Voltage        =   200               # [mV]
+Voltage        =   150               # [mV]
 inputVoltage   =   0.05*Voltage      # [mV]
 inputNoise     =   10.0
 def inputSpaceFrame(d, sigma):
@@ -72,7 +67,8 @@ neuronsToRecord = [(inputTarget[0]+  0,           inputTarget[1]+0),
 # Neurons custom parameters
 threshPot         = -55.0
 restPot           = -70.0  # should be 'E_l' but not sure
-neuronModel       = 'iaf_cond_alpha'
+neuronModel       = 'hh_psc_alpha_gap'
+interneuronModel  = 'iaf_cond_alpha'
 neuronParams      = {'V_th': threshPot,      'tau_syn_ex': 10.0,'tau_syn_in': 10.0, 'V_reset': -70.0, 't_ref': 3.5}
 interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,'tau_syn_in': 1.0, 'V_reset': -70.0, 't_ref': 3.5}
 
@@ -81,7 +77,11 @@ connections    = {
     'BC_To_GC' : 700,      # 7000 [nS/spike]
     'AC_To_GC' : -700,     # -7000 [nS/spike]
     'HC_To_BC' : -70 ,     # -700 [nS/spike]
-    'BC_To_AC' : 70}       # 700 [nS/spike]
+    'BC_To_AC' : 70  ,     # 700 [nS/spike]
+    'GC_gap'   : 0.7 ,
+    'AC_gap'   : 0.7 ,
+    'HC_gap'   : 0.7 ,
+    'BC_gap'   : 0.7}
 
 # Scale the weights, if needed
 weightScale    = 0.0002    # 0.0005
@@ -94,10 +94,10 @@ for key, value in connections.items():
 #########################
 
 # Cells
-GC = nest.Create(neuronModel,          nRows*nCols,      neuronParams)
-BC = nest.Create(neuronModel, BGCRatio*nRows*nCols, interNeuronParams)
-AC = nest.Create(neuronModel, AGCRatio*nRows*nCols, interNeuronParams)
-HC = nest.Create(neuronModel, HGCRatio*nRows*nCols, interNeuronParams)
+GC = nest.Create(neuronModel,               nRows*nCols,      neuronParams)
+BC = nest.Create(interneuronModel, BGCRatio*nRows*nCols, interNeuronParams)
+AC = nest.Create(interneuronModel, AGCRatio*nRows*nCols, interNeuronParams)
+HC = nest.Create(interneuronModel, HGCRatio*nRows*nCols, interNeuronParams)
 
 # Previous membrane potential (previous time-step) ; initialized at resting pot.
 BCLastVoltage = numpy.zeros((len(BC),))
@@ -186,8 +186,8 @@ if not os.path.exists(figureDir):
 # Calculate ions mobility delay
 def d0(Voltage):                                                                     #[mV]
     return (-6*10**-8*(Voltage**3))+(0.0002*(Voltage**2))+(0.1471*Voltage)-6.2835    #[um]
-def delay(distance,voltage):                                                        # [um][mV]
-    #return ((distance*10**-6)**2/((voltage*10**-3)*363*10**-9))*10**3              # [ms] if charge carrier speed cst
+def delay(distance,voltage):                                                         # [um][mV]
+    #return ((distance*10**-6)**2/((voltage*10**-3)*363*10**-9))*10**3               # [ms] if charge carrier speed cst
     return ((((d0(voltage)*10**-6)**2)/(363*10**-9*voltage*10**-3))*(numpy.exp((distance*10**-6)/(d0(voltage)*10**-6))-1))
 delayGC = delay(10,Voltage)
 delayAC = delay(30,Voltage)
@@ -248,6 +248,15 @@ for time in range(timeSteps):
                     target    = (k*nRows*nCols + i*nRows + j)
                     HCVoltage = nest.GetStatus([HC[target]], 'V_m')[0] - restPot
                     nest.SetStatus([HC[target]], {'V_m': restPot + HCVoltage + StimHC*0.25})
+
+    # Gap junctions between GC
+    source = []
+    target = []
+        for i in range (nRows):
+            for j in range (nCols):
+                    source = (nRows*nCols + i*nCols + j)
+                    target = (              i*nCols + j)
+                    nest.Connect(source, target, {'rule':'one_to_one,make_symmetric':True},{'model':'gapjunction','weight':connections['GC_gap']})
 
     # Connections from bipolar cells to the retinal ganglion cells
     source = []
@@ -360,8 +369,14 @@ for i in range(len(neuronsToRecord)):
     Spikes = numpy.asarray(spikes)
     SL     = numpy.sum(numpy.array([x for x in Spikes if x<10]))/10
     ML     = numpy.sum(numpy.array([x for x in Spikes if x>40 and x<120]))/(120-40)
-    #print(SL)
-    #print(ML)
+    print(SL)
+    print(ML)
+    print (Spikes)
+    f = open('SimFigures/Spikes.txt', 'w')
+    f.write('\n'+'Spikes times:')
+    for i in range(Spikes.size):
+    	f.write('\n'+str(Spikes[i]))
+    f.close()
 
     # Plot the membrane potential of HC
     events = nest.GetStatus(HCMMs[i])[0]['events']
@@ -429,5 +444,6 @@ plt.plot(inputTime, 1.0*numpy.array(inputShapeAC))
 plt.subplot(5,len(neuronsToRecord)+1, 4*(len(neuronsToRecord)+1))
 plt.plot(inputTime, 1.0*numpy.array(inputShapeGC))
 
-# Show the plot
+# Show % save the plot
+plt.savefig('SimFigures/Raster.eps', format='eps', dpi=1000)
 plt.show()
