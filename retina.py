@@ -34,10 +34,10 @@ def getRC(d, D):                         #[um]
     r= 40000000000000                                #[um]
     return  (0.7*d*10**-6 + 0.7*2*numpy.pi*r*10**-6*d*10**-6) * ((0.1*d*10**-6)**-1 + (0.01*2*numpy.pi*r*10**-6*d*10**-6)**-1)**-1
 
-RC_GC           =   getRC(10,10)*10**3   # 0.4[ms]
-RC_BC           =   getRC(49,5)*10**3    # 10[ms]
+RC_GC           =   getRC(10,10)*10**3   # 0.4 [ms]
+RC_BC           =   getRC(49,5)*10**3    # 10  [ms]
 RC_AC           =   getRC(30,5)*10**3    # 0.65[ms]
-RC_HC           =   getRC(64,10)*10**3   # 12[ms]
+RC_HC           =   getRC(64,10)*10**3   # 12  [ms]
 nRows           =   10                   # [pixels]
 nCols           =   10                   # [pixels]
 
@@ -67,15 +67,15 @@ neuronsToRecord = [(inputTarget[0]+  0,           inputTarget[1]+0),
 threshPot         = -55.0
 restPot           = -70.0  # more or less equal for all populations taking into account std in litterature
 neuronModel       = 'iaf_cond_alpha'
-neuronParams      = {'V_th': threshPot,      'tau_syn_ex': 10.0,'tau_syn_in': 10.0, 'V_reset': -70.0, 't_ref': 3.5}
-interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,'tau_syn_in': 1.0, 'V_reset': -70.0, 't_ref': 3.5}
+neuronParams      = {'V_th': threshPot,      'tau_syn_ex': 10.0, 'tau_syn_in': 10.0, 'V_reset': -70.0, 't_ref': 3.5}
+interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,  'tau_syn_in':  1.0, 'V_reset': -70.0, 't_ref': 3.5}
 
 # Connection parameters
 connections    = {
-    'BC_To_GC' : 700,      # 7000 [nS/spike]
-    'AC_To_GC' : -700,     # -7000 [nS/spike]
-    'HC_To_BC' : -70 ,     # -700 [nS/spike]
-    'BC_To_AC' : 70       # 700 [nS/spike]
+    'BC_To_GC' : 700, #  7000 [nS/spike]
+    'AC_To_GC' :-700, # -7000 [nS/spike]
+    'HC_To_BC' : -70, #  -700 [nS/spike]
+    'BC_To_AC' :  70  #   700 [nS/spike]
     }
 
 # Scale the weights, if needed
@@ -346,6 +346,9 @@ sys.stdout.flush()
 for instance in gifMakerList: # gifMaker.getInstances():
     instance.createGif(figureDir, durationTime=0.2)
 
+f = open('SimFigures/Spikes.txt', 'w')
+centralNeurons       = [0,1]
+centralNeuronsSpikes = []
 for i in range(len(neuronsToRecord)):
 
     # Obtain and display data
@@ -353,16 +356,16 @@ for i in range(len(neuronsToRecord)):
     recCol = neuronsToRecord[i][1]
     spikes = nest.GetStatus([GCSD[recRow*nRows+recCol]], keys='events')[0]['times']
     Spikes = numpy.asarray(spikes)
-    SL     = numpy.sum(numpy.array([x for x in Spikes if x<10]))/10
-    ML     = numpy.sum(numpy.array([x for x in Spikes if x>40 and x<120]))/(120-40)
+    SL     = numpy.sum(numpy.array([x for x in Spikes if x<10]))/(10*0.001)                  # [Hz]
+    ML     = numpy.sum(numpy.array([x for x in Spikes if x>40 and x<120]))/((120-40)*0.001)  # [Hz]
     #print(SL)
     #print(ML)
-    #print (Spikes)
-    #f = open('SimFigures/Spikes.txt', 'w')
-    #f.write('\n'+'Spikes times:')
-    #for i in range(Spikes.size):
-    #	f.write('\n'+str(Spikes[i]))
-    #f.close()
+    print(spikes, len(spikes))
+    f.write('\n'+'Spikes times of neuron '+str(i)+': ')
+    for spike in spikes:
+    	f.write(str(spike)+'\t')
+    	if i in centralNeurons:
+    		centralNeuronsSpikes.append(spike)
 
     # Plot the membrane potential of HC
     events = nest.GetStatus(HCMMs[i])[0]['events']
@@ -408,6 +411,11 @@ for i in range(len(neuronsToRecord)):
     plt.axis([0, simulationTime, 0, 1.5])
     plt.ylabel('Rasterplot')
 
+# Close the spike file and do the spikes histogram
+f.close()
+plt.subplot(5, len(neuronsToRecord)+1, 5*(len(neuronsToRecord)+1))
+plt.hist(x=centralNeuronsSpikes, bins=int(simulationTime/10.0), range=(0,simulationTime), weights=[1.0/len(centralNeurons) for i in centralNeuronsSpikes])
+
 # Input shape
 inputTime    = []
 inputShapeHC = []
@@ -419,7 +427,7 @@ for time in range(timeSteps):
     inputShapeHC.append(inputTimeFrame(RC_HC, 0.25, time, startTime + delayHC, stopTime + delayHC))
     inputShapeBC.append(inputTimeFrame(RC_BC, 0.31, time, startTime + delayBC, stopTime + delayBC))
     inputShapeAC.append(inputTimeFrame(RC_AC, 0.42, time, startTime + delayAC, stopTime + delayAC))
-    inputShapeGC.append(inputTimeFrame(RC_GC, 0.9, time, startTime + delayGC, stopTime + delayGC))
+    inputShapeGC.append(inputTimeFrame(RC_GC, 0.90, time, startTime + delayGC, stopTime + delayGC))
 
 plt.subplot(5,len(neuronsToRecord)+1, 1*(len(neuronsToRecord)+1))
 plt.plot(inputTime, 1.0*numpy.array(inputShapeHC))
@@ -431,5 +439,5 @@ plt.subplot(5,len(neuronsToRecord)+1, 4*(len(neuronsToRecord)+1))
 plt.plot(inputTime, 1.0*numpy.array(inputShapeGC))
 
 # Show % save the plot
-#plt.savefig('SimFigures/Raster.eps', format='eps', dpi=1000)
+plt.savefig('SimFigures/Raster.eps', format='eps', dpi=1000)
 plt.show()
