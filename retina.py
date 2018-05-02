@@ -66,8 +66,9 @@ neuronsToRecord = [(inputTarget[0]+  0,           inputTarget[1]+0),
 # Neurons custom parameters
 threshPot         = -55.0
 restPot           = -70.0  # more or less equal for all populations taking into account std in litterature
-neuronModel       = 'iaf_cond_alpha'
-neuronParams      = {'V_th': threshPot,      'tau_syn_ex': 10.0, 'tau_syn_in': 10.0, 'V_reset': -70.0, 't_ref': 3.5}
+neuronModel       = 'hh_psc_alpha_gap'
+interneuronModel  = 'iaf_cond_alpha'
+neuronParams      = {                        'tau_syn_ex': 10.0, 'tau_syn_in': 10.0, 'E_L'    : -70.0}
 interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,  'tau_syn_in':  1.0, 'V_reset': -70.0, 't_ref': 3.5}
 
 # Connection parameters
@@ -75,8 +76,11 @@ connections    = {
     'BC_To_GC' : 700, #  7000 [nS/spike]
     'AC_To_GC' :-700, # -7000 [nS/spike]
     'HC_To_BC' : -70, #  -700 [nS/spike]
-    'BC_To_AC' :  70  #   700 [nS/spike]
-    }
+    'BC_To_AC' :  70 , #   700 [nS/spike]
+    'GC_gap'   : 0.7 ,
+    'AC_gap'   : 0.7 ,
+    'HC_gap'   : 0.7 ,
+    'BC_gap'   : 0.7}
 
 # Scale the weights, if needed
 weightScale    = 0.0002    # 0.0005
@@ -89,10 +93,10 @@ for key, value in connections.items():
 #########################
 
 # Cells
-GC = nest.Create(neuronModel,          nRows*nCols,      neuronParams)
-BC = nest.Create(neuronModel, BGCRatio*nRows*nCols, interNeuronParams)
-AC = nest.Create(neuronModel, AGCRatio*nRows*nCols, interNeuronParams)
-HC = nest.Create(neuronModel, HGCRatio*nRows*nCols, interNeuronParams)
+GC = nest.Create(neuronModel,               nRows*nCols,      neuronParams)
+BC = nest.Create(interneuronModel, BGCRatio*nRows*nCols, interNeuronParams)
+AC = nest.Create(interneuronModel, AGCRatio*nRows*nCols, interNeuronParams)
+HC = nest.Create(interneuronModel, HGCRatio*nRows*nCols, interNeuronParams)
 
 # Previous membrane potential (previous time-step) ; initialized at resting pot.
 BCLastVoltage = numpy.zeros((len(BC),))
@@ -243,6 +247,15 @@ for time in range(timeSteps):
                     target    = (k*nRows*nCols + i*nRows + j)
                     HCVoltage = nest.GetStatus([HC[target]], 'V_m')[0] - restPot
                     nest.SetStatus([HC[target]], {'V_m': restPot + HCVoltage + StimHC*0.25})
+
+    # Gap junctions between GC
+    source = []
+    target = []
+    for i in range (nRows):
+        for j in range (nCols):
+            source = (i*nCols + j)
+            target = (i*nCols + j)
+            nest.Connect(GC[source], GC[target], {'rule':'one_to_one', 'make_symmetric':True}, {'model':'gapjunction', 'weight':connections['GC_gap']})
 
     # Connections from bipolar cells to the retinal ganglion cells
     source = []
