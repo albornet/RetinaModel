@@ -14,10 +14,10 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime =  20.0      # [ms]
+simulationTime =  50.0      # [ms]
 stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime      =   0.0      # [ms]
-stopTime       =  50.0      # [ms]
+stopTime       =  10.0      # [ms]
 
 # Retina parameters
 BGCRatio        =    4
@@ -29,31 +29,39 @@ inhibRangeAC    =    2            # [pixels]
 nonInhibRangeHC =    0            # [pixels]
 nonInhibRangeAC =    1            # [pixels]
 
-def getRC(d, D):                         #[um]
-    #return (0.7*d*10**-6 + 0.7*4*numpy.pi*(D*10**-6)**2)     * ((0.1*d*10**-6)**-1 + (0.01*4*numpy.pi*(D*10**-6)**2)**-1)**-1
-    r= 40000000000000                                #[um]
-    return  (0.7*d*10**-6 + 0.7*2*numpy.pi*r*10**-6*d*10**-6) * ((0.1*d*10**-6)**-1 + (0.01*2*numpy.pi*r*10**-6*d*10**-6)**-1)**-1
-
+def getRC(d, D):                        #[um]
+    #r=  40000000000000                #[um] requivalent of neuron
+    A=  300000                         #[um2] area of one neuron
+    #return  (0.7*d*10**-6 + 0.7*2*numpy.pi*r*10**-6*d*10**-6) * ((0.1*d*10**-6)**-1 + (0.01*2*numpy.pi*r*10**-6*d*10**-6)**-1)**-1
+    return (10*d*10**-6 + (5*10**8)*A*10**-12*(300/7)*(d/7)) * ((0.1*d*10**-6)**-1 + (0.01*A*10**-12*(300/7)*(d/7))**-1)**-1
 RC_GC           =   getRC(10,10)*10**3   # 0.4 [ms]
+print(RC_GC)
 RC_BC           =   getRC(49,5)*10**3    # 10  [ms]
+print(RC_BC)
 RC_AC           =   getRC(30,5)*10**3    # 0.65[ms]
+print(RC_AC)
 RC_HC           =   getRC(64,10)*10**3   # 12  [ms]
+print(RC_HC)
 nRows           =   10                   # [pixels]
 nCols           =   10                   # [pixels]
 
 # Input parameters
 inputTarget    =   (5, 5)            # [pixels]
 inputRadius    =    4                # [pixels]
-Voltage        =   150               # [mV]
+Voltage        =   500               # [mV]
 inputVoltage   =   0.05*Voltage      # [mV]
 inputNoise     =   10.0
 def inputSpaceFrame(d, sigma):
     return numpy.exp(-d**2/(2*sigma**2))
 def inputTimeFrame(RC, gain, t, start, stop):
     if start < t < stop:
-        return gain*(1-numpy.exp(-(t-start)/RC))
+        #return gain*(1-numpy.exp(-(t-start)/RC))                                                            #if square pulse
+        return gain*(1-numpy.exp(-(t-start)/0.1))*(1-numpy.exp(-(t-start)/RC))                               #if prosthetic like pulse
+        #return gain*(t/start)*(1-numpy.exp(-(t-start)/RC))                                                  #if triangular pulse
     if t >= stop:
-        return gain*(1-numpy.exp(-(stop-start)/RC))*numpy.exp (-(t-stop)/RC)
+        #return gain*(1-numpy.exp(-(stop-start)/RC))*numpy.exp (-(t-stop)/RC)                                                              #if square pulse
+        return gain*((1-numpy.exp(-(stop-start)/0.1))*(1-numpy.exp(-(stop-start)/RC)))*(numpy.exp(-(t-stop)/100)*numpy.exp(-(t-stop)/RC)) #if prosthetic like pulse
+        #return gain*(stop/start)*(1-numpy.exp(-(stop-start)/RC))*(1-(t/stop))*numpy.exp(-(t-stop)/RC)                                                 #if triangular pulse
     else:
         return 0.0
 
