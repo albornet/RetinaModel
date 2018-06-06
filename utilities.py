@@ -8,34 +8,34 @@ def getRC(d, D):
 
 # Calculate ions mobility delay
 def getDelay(distance, voltage):                                                     # [um][mV]
-    
+
     #return ((distance*10**-6)**2/((voltage*10**-3)*363*10**-9))*10**3               # [ms] if charge carrier speed cst
     d0 = (-6*10**-8*(voltage**3))+(0.0002*(voltage**2))+(0.1471*voltage)-6.2835      # [um]
-    return ((((d0*10**-6)**2)/(363*10**-9*voltage*10**-3))*(numpy.exp((distance*10**-6)/(d0*10**-6))-1))
+    return 0 #((((d0*10**-6)**2)/(363*10**-9*voltage*10**-3))*(numpy.exp((distance*10**-6)/(d0*10**-6))-1))
 
 
 def voltagePattern(V_gain, time, t_start, t_stop, shape):
-    
+
     if t_start < time < t_stop:
-    	if shape == 'square':
-    		return V_gain
+        #if shape == 'square':
+        #    return V_gain
         if shape == 'prosthetic':
-        	return V_gain*(1-numpy.exp(-(time-t_start)/2.0))
-        if shape == 'triangle':
-        	return V_gain/(t_stop-t_start)*(time-t_start)
+            return V_gain*(1-numpy.exp(-(time-t_start)/2.0))
+        #if shape == 'triangle':
+        	#return V_gain/(t_stop-t_start)*(time-t_start)
     if time >= t_stop:
-    	if shape == 'square':
-    		return 0.0
+    	#if shape == 'square':
+    	#	return 0.0
         if shape == 'prosthetic':
         	return V_gain*(1-numpy.exp(-(t_stop-t_start)/2.0))*numpy.exp(-(time-t_stop)/12.0)
-        if shape == 'triangle':
-        	return max(-V_gain/(t_stop-t_start)*(time-(t_start+t_stop)), 0.0)
+        #if shape == 'triangle':
+        	#return max(-V_gain/(t_stop-t_start)*(time-(t_start+t_stop)), 0.0)
     else:
         return 0.0
 
 
 def inputSpaceFrame(d, sigma):
-    
+
     return numpy.exp(-d**2/(2*sigma**2))
 
 

@@ -14,10 +14,10 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime  =  50.0      # [ms]
+simulationTime  =  120.0      # [ms]
 stepDuration    =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime       =   0.0      # [ms]
-stopTime        =  10.0      # [ms]
+stopTime        =  50.0      # [ms]
 time            =  numpy.arange(0, simulationTime, stepDuration) # true time array, in [ms]
 
 # Retina parameters
@@ -35,7 +35,7 @@ nonInhibRangeAC =  1  # [pixels]
 # Input parameters
 inputTarget     =  (5, 5)            # [pixels]
 inputRadius     =   4                # [pixels]
-Voltage         =   500              # [mV]
+Voltage         =   1500              # [mV]
 inputVoltage    =   0.05*Voltage     # [mV]
 inputNoise      =   inputVoltage/10.0
 shape           =   'prosthetic'
@@ -196,7 +196,7 @@ for t in range(timeSteps):
 
             distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
             if distance < inputRadius:
-                
+
                 StimGC    = input_GC[t]*inputSpaceFrame(distance, 0.5*inputRadius)
                 target    = (i*nCols + j)
                 GCVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
@@ -208,10 +208,10 @@ for t in range(timeSteps):
 
             distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
             if distance < inputRadius:
-                
+
                 StimAC = input_AC[t]*inputSpaceFrame(distance, 0.5*inputRadius)
                 for k in range(AGCRatio):
-                
+
                     target    = (k*nRows*nCols + i*nRows + j)
                     ACVoltage = nest.GetStatus([AC[target]], 'V_m')[0] - restPot
                     nest.SetStatus([AC[target]], {'V_m': restPot + ACVoltage + StimAC})
