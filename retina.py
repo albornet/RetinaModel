@@ -1,69 +1,68 @@
 import nest, numpy, os, sys
 import matplotlib.pyplot as plt
 from makeGifs import gifMaker
+from utilities import *
+
 nCoresToUse = 1
 nest.sli_run('M_WARNING setverbosity') # avoid writing too many NEST messages
 nest.ResetKernel()
 nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'print_time': True})
 
-# To do:
-# SAVE spikestimes + SL/ML/LL
 
 ##########################
 ### Set the parameters ###
 ##########################
 
 # Simulation parameters
-simulationTime =  50.0      # [ms]
-stepDuration   =   1.0      # [ms]  # put 1.0 here to see nice gifs
-startTime      =   0.0      # [ms]
-stopTime       =  10.0      # [ms]
+simulationTime  =  50.0      # [ms]
+stepDuration    =   1.0      # [ms]  # put 1.0 here to see nice gifs
+startTime       =   0.0      # [ms]
+stopTime        =  10.0      # [ms]
+time            =  numpy.arange(0, simulationTime, stepDuration) # true time array, in [ms]
 
 # Retina parameters
-BGCRatio        =    4
-AGCRatio        =    5
-HGCRatio        =    1
-excitRangeBC    =    1
-inhibRangeHC    =    1            # [pixels]
-inhibRangeAC    =    2            # [pixels]
-nonInhibRangeHC =    0            # [pixels]
-nonInhibRangeAC =    1            # [pixels]
-
-def getRC(d, D):                        #[um]
-    #r=  40000000000000                #[um] requivalent of neuron
-    A=  300000                         #[um2] area of one neuron
-    #return  (0.7*d*10**-6 + 0.7*2*numpy.pi*r*10**-6*d*10**-6) * ((0.1*d*10**-6)**-1 + (0.01*2*numpy.pi*r*10**-6*d*10**-6)**-1)**-1
-    return (10*d*10**-6 + (5*10**8)*A*10**-12*(300/7)*(d/7)) * ((0.1*d*10**-6)**-1 + (0.01*A*10**-12*(300/7)*(d/7))**-1)**-1
-RC_GC           =   getRC(10,10)*10**3   # 0.4 [ms]
-print(RC_GC)
-RC_BC           =   getRC(49,5)*10**3    # 10  [ms]
-print(RC_BC)
-RC_AC           =   getRC(30,5)*10**3    # 0.65[ms]
-print(RC_AC)
-RC_HC           =   getRC(64,10)*10**3   # 12  [ms]
-print(RC_HC)
-nRows           =   10                   # [pixels]
-nCols           =   10                   # [pixels]
+nRows           = 10  # [pixels] --> how many cells (rows)
+nCols           = 10  # [pixels] --> how many cells (cols)
+BGCRatio        =  4
+AGCRatio        =  5
+HGCRatio        =  1
+excitRangeBC    =  1
+inhibRangeHC    =  1  # [pixels]
+inhibRangeAC    =  2  # [pixels]
+nonInhibRangeHC =  0  # [pixels]
+nonInhibRangeAC =  1  # [pixels]
 
 # Input parameters
-inputTarget    =   (5, 5)            # [pixels]
-inputRadius    =    4                # [pixels]
-Voltage        =   500               # [mV]
-inputVoltage   =   0.05*Voltage      # [mV]
-inputNoise     =   10.0
-def inputSpaceFrame(d, sigma):
-    return numpy.exp(-d**2/(2*sigma**2))
-def inputTimeFrame(RC, gain, t, start, stop):
-    if start < t < stop:
-        #return gain*(1-numpy.exp(-(t-start)/RC))                                                            #if square pulse
-        return gain*(1-numpy.exp(-(t-start)/0.1))*(1-numpy.exp(-(t-start)/RC))                               #if prosthetic like pulse
-        #return gain*(t/start)*(1-numpy.exp(-(t-start)/RC))                                                  #if triangular pulse
-    if t >= stop:
-        #return gain*(1-numpy.exp(-(stop-start)/RC))*numpy.exp (-(t-stop)/RC)                                                              #if square pulse
-        return gain*((1-numpy.exp(-(stop-start)/0.1))*(1-numpy.exp(-(stop-start)/RC)))*(numpy.exp(-(t-stop)/100)*numpy.exp(-(t-stop)/RC)) #if prosthetic like pulse
-        #return gain*(stop/start)*(1-numpy.exp(-(stop-start)/RC))*(1-(t/stop))*numpy.exp(-(t-stop)/RC)                                                 #if triangular pulse
-    else:
-        return 0.0
+inputTarget     =  (5, 5)            # [pixels]
+inputRadius     =   4                # [pixels]
+Voltage         =   500              # [mV]
+inputVoltage    =   0.05*Voltage     # [mV]
+inputNoise      =   inputVoltage/10.0
+shape           =   'prosthetic'
+
+# Layers z-position
+z_GC            = 10  # [um]
+z_AC            = 30  # [um]
+z_BC            = 49  # [um]
+z_HC            = 64  # [um]
+
+# Get the low-pass filter time constant associated to each layer membrane and position
+RC_GC           = getRC(z_GC, 10)*10**3  # 0.4 [ms]
+RC_AC           = getRC(z_AC,  5)*10**3  # 0.65[ms]
+RC_BC           = getRC(z_BC,  5)*10**3  # 10  [ms]
+RC_HC           = getRC(z_HC, 10)*10**3  # 12  [ms]
+
+# Get the delays associated to each layer z-position
+delayGC         = getDelay(z_GC, Voltage)
+delayAC         = getDelay(z_AC, Voltage)
+delayBC         = getDelay(z_BC, Voltage)
+delayHC         = getDelay(z_HC, Voltage)
+
+# Set the input for each neuron, taking into account the attenuation factor (depends on z, but was measured)
+input_GC        = inputTimeFrame(RC_GC, 0.90*inputVoltage, inputNoise, time, startTime + delayGC, stopTime + delayGC, shape)
+input_AC        = inputTimeFrame(RC_AC, 0.42*inputVoltage, inputNoise, time, startTime + delayAC, stopTime + delayAC, shape)
+input_BC        = inputTimeFrame(RC_BC, 0.31*inputVoltage, inputNoise, time, startTime + delayBC, stopTime + delayBC, shape)
+input_HC        = inputTimeFrame(RC_HC, 0.25*inputVoltage, inputNoise, time, startTime + delayHC, stopTime + delayHC, shape)
 
 # Set the neurons whose LFP is going to be recorded
 neuronsToRecord = [(inputTarget[0]+  0,           inputTarget[1]+0),
@@ -186,71 +185,62 @@ figureDir = 'SimFigures'
 if not os.path.exists(figureDir):
     os.makedirs(figureDir)
 
-# Calculate ions mobility delay
-def d0(Voltage):                                                                     #[mV]
-    return (-6*10**-8*(Voltage**3))+(0.0002*(Voltage**2))+(0.1471*Voltage)-6.2835    #[um]
-def delay(distance,voltage):                                                         # [um][mV]
-    #return ((distance*10**-6)**2/((voltage*10**-3)*363*10**-9))*10**3               # [ms] if charge carrier speed cst
-    return ((((d0(voltage)*10**-6)**2)/(363*10**-9*voltage*10**-3))*(numpy.exp((distance*10**-6)/(d0(voltage)*10**-6))-1))
-delayGC = delay(10,Voltage)
-delayAC = delay(30,Voltage)
-delayBC = delay(49,Voltage)
-delayHC = delay(64,Voltage)
 
 # Simulate the network
 timeSteps = int(simulationTime/stepDuration)
-for time in range(timeSteps):
+for t in range(timeSteps):
 
     # Ganglion cells input
     for i in range(nRows):
         for j in range(nCols):
+
             distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
             if distance < inputRadius:
-                noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                inputStrength = (inputVoltage+noiseGain)*inputSpaceFrame(distance, 0.5*inputRadius)
-                StimGC= inputTimeFrame(RC_GC, inputStrength, time, startTime + delayGC, stopTime + delayGC)
-                target        = (                 i*nCols + j)
+                
+                StimGC    = input_GC[t]*inputSpaceFrame(distance, 0.5*inputRadius)
+                target    = (i*nCols + j)
                 GCVoltage = nest.GetStatus([GC[target]], 'V_m')[0] - restPot
-                nest.SetStatus([GC[target]], {'V_m': restPot + GCVoltage + StimGC*0.9})
+                nest.SetStatus([GC[target]], {'V_m': restPot + GCVoltage + StimGC})
 
     # Amacrine cells input
     for i in range(nRows):
         for j in range(nCols):
+
             distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
             if distance < inputRadius:
-                noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                inputStrength = (inputVoltage+noiseGain)*inputSpaceFrame(distance, 0.5*inputRadius)
-                StimAC= inputTimeFrame(RC_AC, inputStrength, time, startTime + delayAC, stopTime + delayAC)
+                
+                StimAC = input_AC[t]*inputSpaceFrame(distance, 0.5*inputRadius)
                 for k in range(AGCRatio):
+                
                     target    = (k*nRows*nCols + i*nRows + j)
                     ACVoltage = nest.GetStatus([AC[target]], 'V_m')[0] - restPot
-                    nest.SetStatus([AC[target]], {'V_m': restPot + ACVoltage + StimAC*0.42})
+                    nest.SetStatus([AC[target]], {'V_m': restPot + ACVoltage + StimAC})
 
     # Bipolar cells input
     for i in range(nRows):
         for j in range(nCols):
             distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
             if distance < inputRadius:
-                noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                inputStrength = (inputVoltage+noiseGain)*inputSpaceFrame(distance, 0.5*inputRadius)
-                StimBC= inputTimeFrame(RC_BC, inputStrength, time, startTime + delayBC, stopTime + delayBC)
+
+                StimBC = input_BC[t]*inputSpaceFrame(distance, 0.5*inputRadius)
                 for k in range(BGCRatio):
+
                     target    = (k*nRows*nCols + i*nRows + j)
                     BCVoltage = nest.GetStatus([BC[target]], 'V_m')[0]- restPot
-                    nest.SetStatus([BC[target]], {'V_m': restPot + BCVoltage + StimBC*0.31})
+                    nest.SetStatus([BC[target]], {'V_m': restPot + BCVoltage + StimBC})
 
     # Horizontal cells input
     for i in range(nRows):
         for j in range(nCols):
             distance = numpy.sqrt((i-inputTarget[0])**2 + (j-inputTarget[1])**2)
             if distance < inputRadius:
-                noiseGain     = inputNoise*(numpy.random.rand()-0.5)*2.0
-                inputStrength = (inputVoltage+noiseGain)*inputSpaceFrame(distance, 0.5*inputRadius)
-                StimHC= inputTimeFrame(RC_HC, inputStrength, time, startTime + delayHC, stopTime + delayHC)
+
+                StimHC = input_HC[t]*inputSpaceFrame(distance, 0.5*inputRadius)
                 for k in range(HGCRatio):
+
                     target    = (k*nRows*nCols + i*nRows + j)
                     HCVoltage = nest.GetStatus([HC[target]], 'V_m')[0] - restPot
-                    nest.SetStatus([HC[target]], {'V_m': restPot + HCVoltage + StimHC*0.25})
+                    nest.SetStatus([HC[target]], {'V_m': restPot + HCVoltage + StimHC})
 
     # Connections from bipolar cells to the retinal ganglion cells
     source = []
@@ -258,6 +248,7 @@ for time in range(timeSteps):
     for i in range(nRows):
         for j in range(nCols):
             for kBC in range(BGCRatio):
+
                 source = (kBC*nRows*nCols + i*nCols + j)
                 target = (                  i*nCols + j)
                 preSynVoltage         = nest.GetStatus([BC[source]], 'V_m')[0] - restPot
@@ -276,7 +267,8 @@ for time in range(timeSteps):
                     for i in range (nRows):
                         for j in range (nCols):
                             if 0 < (i+i2) < nRows and 0 < (j+j2) < nCols:
-                                source = (kAC*nRows*nCols + i     *nCols +  j    )
+
+                                source = (kAC*nRows*nCols + i    *nCols +  j    )
                                 target = (                 (i+i2)*nCols + (j+j2))
                                 preSynVoltage  = nest.GetStatus([AC[source]], 'V_m')[0] - restPot
                                 deltaPreSynVoltage    = (preSynVoltage - ACLastVoltage[source])/stepDuration
@@ -295,6 +287,7 @@ for time in range(timeSteps):
                         for i in range(nRows):
                             for j in range(nCols):
                                 if 0 < (i+i2) < nRows and 0 < (j+j2) < nCols:
+
                                     source = (kHC*nRows*nCols +  i    *nCols +  j    )
                                     target = (kBC*nRows*nCols + (i+i2)*nCols + (j+j2))
                                     preSynVoltage  = nest.GetStatus([HC[source]], 'V_m')[0] - restPot
@@ -336,7 +329,7 @@ for time in range(timeSteps):
 
     # Run the simulation for one gif frame
     nest.Simulate(stepDuration)
-    # if time < timeSteps-1:
+    # if t < timeSteps-1:
     #     sys.stdout.write("\033[2F") # move the cursor back to previous line
 
     # Take screenshots of every recorded population
@@ -424,28 +417,16 @@ f.close()
 plt.subplot(5, len(neuronsToRecord)+1, 5*(len(neuronsToRecord)+1))
 plt.hist(x=centralNeuronsSpikes, bins=int(simulationTime/10.0), range=(0,simulationTime), weights=[1.0/len(centralNeurons) for i in centralNeuronsSpikes])
 
-# Input shape
-inputTime    = []
-inputShapeHC = []
-inputShapeBC = []
-inputShapeAC = []
-inputShapeGC = []
-for time in range(timeSteps):
-    inputTime.append(time)
-    inputShapeHC.append(inputTimeFrame(RC_HC, 0.25, time, startTime + delayHC, stopTime + delayHC))
-    inputShapeBC.append(inputTimeFrame(RC_BC, 0.31, time, startTime + delayBC, stopTime + delayBC))
-    inputShapeAC.append(inputTimeFrame(RC_AC, 0.42, time, startTime + delayAC, stopTime + delayAC))
-    inputShapeGC.append(inputTimeFrame(RC_GC, 0.90, time, startTime + delayGC, stopTime + delayGC))
-
+# Plot different inputs (for each layer)
 plt.subplot(5,len(neuronsToRecord)+1, 1*(len(neuronsToRecord)+1))
-plt.plot(inputTime, 1.0*numpy.array(inputShapeHC))
+plt.plot(time, input_HC)
 plt.subplot(5,len(neuronsToRecord)+1, 2*(len(neuronsToRecord)+1))
-plt.plot(inputTime, 1.0*numpy.array(inputShapeBC))
+plt.plot(time, input_BC)
 plt.subplot(5,len(neuronsToRecord)+1, 3*(len(neuronsToRecord)+1))
-plt.plot(inputTime, 1.0*numpy.array(inputShapeAC))
+plt.plot(time, input_AC)
 plt.subplot(5,len(neuronsToRecord)+1, 4*(len(neuronsToRecord)+1))
-plt.plot(inputTime, 1.0*numpy.array(inputShapeGC))
+plt.plot(time, input_GC)
 
-# Show % save the plot
+# Show and save the plot
 plt.savefig('SimFigures/Raster.eps', format='eps', dpi=1000)
 plt.show()
