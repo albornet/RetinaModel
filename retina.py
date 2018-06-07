@@ -14,10 +14,10 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime  =  120.0      # [ms]
+simulationTime  =  80.0      # [ms]
 stepDuration    =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime       =   0.0      # [ms]
-stopTime        =  50.0      # [ms]
+stopTime        =  10.0      # [ms]
 time            =  numpy.arange(0, simulationTime, stepDuration) # true time array, in [ms]
 
 # Retina parameters
@@ -35,10 +35,10 @@ nonInhibRangeAC =  1  # [pixels]
 # Input parameters
 inputTarget     =  (5, 5)            # [pixels]
 inputRadius     =   4                # [pixels]
-Voltage         =   1500              # [mV]
+Voltage         =   50              # [mV]
 inputVoltage    =   0.05*Voltage     # [mV]
 inputNoise      =   inputVoltage/10.0
-shape           =   'prosthetic'
+shape           =   'triangle'
 
 # Layers z-position
 z_GC            = 10  # [um]
@@ -426,6 +426,7 @@ plt.subplot(5,len(neuronsToRecord)+1, 3*(len(neuronsToRecord)+1))
 plt.plot(time, input_AC)
 plt.subplot(5,len(neuronsToRecord)+1, 4*(len(neuronsToRecord)+1))
 plt.plot(time, input_GC)
+
 
 # Show and save the plot
 plt.savefig('SimFigures/Raster.eps', format='eps', dpi=1000)
