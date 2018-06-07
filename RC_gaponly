@@ -1,0 +1,32 @@
+import nest, numpy, os, sys
+import matplotlib.pyplot as plt
+from makeGifs import gifMaker
+from utilities import *
+
+nCoresToUse = 1
+nest.sli_run('M_WARNING setverbosity') # avoid writing too many NEST messages
+nest.ResetKernel()
+nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'print_time': True})
+
+
+neuronModel       = 'hh_psc_alpha_gap'
+neuronParams      = {                        'tau_syn_ex': 10.0, 'tau_syn_in': 10.0, 'E_L'    : -70.0}
+nRows           = 10  # [pixels] --> how many cells (rows)
+nCols           = 10  # [pixels] --> how many cells (cols)
+
+
+GC = nest.Create(neuronModel,  nRows*nCols,  neuronParams)
+
+connections    = {
+    'GC_gap'   : 0.7 }
+
+########### Gap junctions between GC
+#source = []
+#target = []
+#for i in range (nRows):
+#    for j in range (nCols):
+#        source = (i*nCols + j)
+#        target = (i*nCols + j)
+        #nest.Connect(GC[source], GC[target], {'rule':'one_to_one', 'make_symmetric':True}, {'model':'gapjunction', 'weight':connections['GC_gap']})
+
+nest.Connect(GC[0], GC[0], {'rule':'one_to_one', 'make_symmetric':True}, {'model':'gap_junction', 'weight':connections['GC_gap']})
