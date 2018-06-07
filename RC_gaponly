@@ -21,12 +21,10 @@ connections    = {
     'GC_gap'   : 0.7 }
 
 ########### Gap junctions between GC
-#source = []
-#target = []
-#for i in range (nRows):
-#    for j in range (nCols):
-#        source = (i*nCols + j)
-#        target = (i*nCols + j)
-        #nest.Connect(GC[source], GC[target], {'rule':'one_to_one', 'make_symmetric':True}, {'model':'gapjunction', 'weight':connections['GC_gap']})
-
-nest.Connect(GC[0], GC[0], {'rule':'one_to_one', 'make_symmetric':True}, {'model':'gap_junction', 'weight':connections['GC_gap']})
+source = []
+target = []
+for i in range (nRows):
+    for j in range (nCols):
+        source = (i*nCols + j)
+        target = (i*nCols + j)
+        nest.Connect(GC[s] for s in source, GC[t] for t in target, {'rule':'one_to_one', 'make_symmetric':True}, {'model':'gap_junction', 'weight':connections['GC_gap']})
