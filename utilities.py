@@ -1,4 +1,5 @@
 import numpy
+import matplotlib.pyplot as plt
 
 def getRC(d, D):
 
@@ -15,21 +16,20 @@ def getDelay(distance, voltage):                                                
 
 
 def voltagePattern(V_gain, time, t_start, t_stop, shape):
-
     if t_start < time < t_stop:
-        #if shape == 'square':
-        #    return V_gain
-        #if shape == 'prosthetic':
-        #    return V_gain*(1-numpy.exp(-(time-t_start)/2.0))
+        if shape == 'square':
+            return V_gain
+        if shape == 'prosthetic':
+            return V_gain*(1-numpy.exp(-(time-t_start)/2.0))
         if shape == 'triangle':
-        	return V_gain/(t_stop-t_start)*(time-t_start)
-    #if time >= t_stop:
-    	#if shape == 'square':
-    	#	return 0.0
-        #if shape == 'prosthetic':
-        #	return V_gain*(1-numpy.exp(-(t_stop-t_start)/2.0))*numpy.exp(-(time-t_stop)/12.0)
+            return V_gain/(t_stop-t_start)*(time-t_start)
+    if time >= t_stop:
+        if shape == 'square':
+            return 0.0
+        if shape == 'prosthetic':
+            return V_gain*(1-numpy.exp(-(t_stop-t_start)/2.0))*numpy.exp(-(time-t_stop)/12.0)
         if shape == 'triangle':
-        	return max(-V_gain/(t_stop-t_start)*(time-(t_start+t_stop)), 0.0)
+            return max(-V_gain/(t_stop-t_start)*(time-(t_start+t_stop)), 0.0)
     else:
         return 0.0
 

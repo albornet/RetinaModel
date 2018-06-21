@@ -1,7 +1,7 @@
 import nest, numpy, os, sys
 import matplotlib.pyplot as plt
 from makeGifs import gifMaker
-from utilities import *
+from utilities_Trains import *
 
 nCoresToUse = 1
 nest.sli_run('M_WARNING setverbosity') # avoid writing too many NEST messages
@@ -19,6 +19,7 @@ stepDuration    =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime       =   0.0      # [ms]
 stopTime        =  10.0      # [ms]
 time            =  numpy.arange(0, simulationTime, stepDuration) # true time array, in [ms]
+F=20*10**-3;                 # mHz to have ms
 
 # Retina parameters
 nRows           = 10  # [pixels] --> how many cells (rows)
@@ -35,7 +36,7 @@ nonInhibRangeAC =  1  # [pixels]
 # Input parameters
 inputTarget     =  (5, 5)            # [pixels]
 inputRadius     =   4                # [pixels]
-Voltage         =   120             # [mV]
+Voltage         =   50             # [mV]
 inputVoltage    =   0.05*Voltage     # [mV]
 inputNoise      =   inputVoltage/10.0
 shape           =   'square'
@@ -407,6 +408,8 @@ for i in range(len(neuronsToRecord)):
     # Do the rasterplot
     plt.subplot(5, len(neuronsToRecord)+1, 4*(len(neuronsToRecord)+1)+i+1)
     plt.plot([startTime, stopTime], [1.25, 1.25], 'c-', lw=4)
+    for r in range (1,5):
+        plt.plot([startTime + r/F, stopTime +r/F], [1.25, 1.25], 'c-', lw=4)
     for spike in spikes:
         plt.plot([spike, spike], [0, 1], 'k-', lw=2)
     plt.axis([0, simulationTime, 0, 1.5])
