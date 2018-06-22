@@ -14,7 +14,7 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime  =  300.0      # [ms]
+simulationTime  =  30.0      # [ms]
 stepDuration    =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime       =   0.0      # [ms]
 stopTime        =  10.0      # [ms]
@@ -34,11 +34,11 @@ nonInhibRangeAC =  1  # [pixels]
 
 # Input parameters
 inputTarget     =  (5, 5)            # [pixels]
-inputRadius     =   4                # [pixels]
-Voltage         =   120             # [mV]
+inputRadius     =   4               # [pixels]
+Voltage         =   250             # [mV]
 inputVoltage    =   0.05*Voltage     # [mV]
 inputNoise      =   inputVoltage/10.0
-shape           =   'square'
+shape           =   'prosthetic'
 
 # Layers z-position
 z_GC            = 10  # [um]
