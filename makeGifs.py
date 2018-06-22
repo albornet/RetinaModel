@@ -66,7 +66,7 @@ class gifMaker:
 			for h in range(self.dimTuple[0]):
 				write_gif(numpy.array(self.outImages[h])/self.maxAllTime, thisTrialDir+'/'+self.name+'Seg'+str(h)+'.gif', fps=20)
 		else:
-			write_gif(255.0*numpy.array(self.outImages[0])/self.maxAllTime, thisTrialDir+'/'+self.name+'.gif', fps=20)
+			write_gif((254*numpy.array(self.outImages[0])/self.maxAllTime).astype(numpy.uint8), thisTrialDir+'/'+self.name+'.gif', fps=20)
 
 		# Reset the output images, for the next trials
 		self.outImages = [[] for i in range(self.dimTuple[0])]

@@ -14,7 +14,7 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime  =  10.0      # [ms]
+simulationTime  =  100.0      # [ms]
 stepDuration    =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime       =   0.0      # [ms]
 stopTime        =  10.0      # [ms]
@@ -35,7 +35,7 @@ nonInhibRangeAC =  1  # [pixels]
 # Input parameters
 inputTarget     =  (5, 5)            # [pixels]
 inputRadius     =   4                # [pixels]
-Voltage         =   2*250              # [mV]
+Voltage         =   250              # [mV]
 inputVoltage    =   0.05*Voltage     # [mV]
 inputNoise      =   inputVoltage/10.0
 shape           =   'prosthetic'
@@ -84,7 +84,7 @@ connections    = {
     'AC_To_GC' :-700, # -7000 [nS/spike]
     'HC_To_BC' : -70, #  -700 [nS/spike]
     'BC_To_AC' :  70 , #   700 [nS/spike]
-    'GC_gap'   : 100 }
+    'GC_gap'   : 0 }
 
 # Scale the weights, if needed
 weightScale    = 0.0002    # 0.0005
@@ -349,8 +349,9 @@ for t in range(timeSteps):
     #     sys.stdout.write("\033[2F") # move the cursor back to previous line
 
     # Take screenshots of every recorded population
-    for instance in gifMakerList: # gifMaker.getInstances():
-        (namePop, nSpikes) = instance.takeScreenshot()
+    if t%25 == 0:
+        for instance in gifMakerList: # gifMaker.getInstances():
+            (namePop, nSpikes) = instance.takeScreenshot()
 
 
 #################################
