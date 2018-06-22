@@ -35,10 +35,10 @@ nonInhibRangeAC =  1  # [pixels]
 # Input parameters
 inputTarget     =  (5, 5)            # [pixels]
 inputRadius     =   4                # [pixels]
-Voltage         =   50              # [mV]
+Voltage         =   200              # [mV]
 inputVoltage    =   0.05*Voltage     # [mV]
 inputNoise      =   inputVoltage/10.0
-shape           =   'triangle'
+shape           =   'square'
 
 # Layers z-position
 z_GC            = 10  # [um]
@@ -255,7 +255,7 @@ for t in range(timeSteps):
 
 		            source.append(i*nCols + j)
 		            target.append(m*nCols + n)
-    
+
     nest.Connect([GC[s] for s in source], [GC[t] for t in target], {'rule':'one_to_one', 'make_symmetric':True}, {'model':'gap_junction', 'weight':connections['GC_gap']})
 
     # Connections from bipolar cells to the retinal ganglion cells
