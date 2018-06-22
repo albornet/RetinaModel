@@ -1,6 +1,6 @@
 # Imports
-import nest, numpy
-from images2gif import writeGif
+import nest, numpy, sys
+from array2gif import write_gif
 
 # Class to draw gifs out of population activity snapshots ; one per population
 class gifMaker:
@@ -64,9 +64,9 @@ class gifMaker:
 		# Create an animated gif of the output ; rescale firing rates to max value
 		if self.dimTuple[0] > 1:
 			for h in range(self.dimTuple[0]):
-				writeGif(thisTrialDir+'/'+self.name+'Seg'+str(h)+'.gif', numpy.array(self.outImages[h])/self.maxAllTime, duration=durationTime)
+				write_gif(numpy.array(self.outImages[h])/self.maxAllTime, thisTrialDir+'/'+self.name+'Seg'+str(h)+'.gif', fps=20)
 		else:
-			writeGif(thisTrialDir+'/'+self.name+'.gif', numpy.array(self.outImages[0])/self.maxAllTime, duration=durationTime)
+			write_gif(255.0*numpy.array(self.outImages[0])/self.maxAllTime, thisTrialDir+'/'+self.name+'.gif', fps=20)
 
 		# Reset the output images, for the next trials
 		self.outImages = [[] for i in range(self.dimTuple[0])]
