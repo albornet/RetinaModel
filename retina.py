@@ -35,10 +35,10 @@ nonInhibRangeAC =  1  # [pixels]
 # Input parameters
 inputTarget     =  (5, 5)            # [pixels]
 inputRadius     =   4                # [pixels]
-Voltage         =   200              # [mV]
+Voltage         =   250              # [mV]
 inputVoltage    =   0.05*Voltage     # [mV]
 inputNoise      =   inputVoltage/10.0
-shape           =   'square'
+shape           =   'prosthetic'
 
 # Layers z-position
 z_GC            = 10  # [um]
@@ -84,7 +84,7 @@ connections    = {
     'AC_To_GC' :-700, # -7000 [nS/spike]
     'HC_To_BC' : -70, #  -700 [nS/spike]
     'BC_To_AC' :  70 , #   700 [nS/spike]
-    'GC_gap'   : 0.7 }
+    'GC_gap'   : 100 }
 
 # Scale the weights, if needed
 weightScale    = 0.0002    # 0.0005
@@ -115,7 +115,7 @@ nest.Connect(GC, GCSD, 'one_to_one')
 
 # Create the gif makers, for each population
 gifMakerList = []
-# gifMakerList.append(gifMaker(name='GC', popID=GCSD, dimTuple=(1,            nRows,   nCols), orientedMap=False, spiking=True , baseline=None   ))
+gifMakerList.append(gifMaker(name='GC', popID=GCSD, dimTuple=(1,            nRows,   nCols), orientedMap=False, spiking=True , baseline=None   ))
 # gifMakerList.append(gifMaker(name='BC', popID=BC,   dimTuple=(1, BGCRatio,  nRows,   nCols), orientedMap=True , spiking=False, baseline=restPot))
 # gifMakerList.append(gifMaker(name='AC', popID=AC,   dimTuple=(1,          nACRows, nACCols), orientedMap=False, spiking=False, baseline=restPot))
 # gifMakerList.append(gifMaker(name='HC', popID=HC,   dimTuple=(1,          nHCRows, nHCCols), orientedMap=False, spiking=False, baseline=restPot))
