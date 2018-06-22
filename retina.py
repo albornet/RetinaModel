@@ -248,9 +248,15 @@ for t in range(timeSteps):
     target = []
     for i in range (nRows):
         for j in range (nCols):
-            source = (i*nCols + j)
-            target = (i*nCols + j)
-            nest.Connect(GC[source], GC[target], {'rule':'one_to_one', 'make_symmetric':True}, {'model':'gap_junction', 'weight':connections['GC_gap']})
+
+        	shiftList = [(i+1,j+0),   (i-1,j+0),   (i+0,j+1),   (i+0,j-1)]
+        	for (m,n) in shiftList:
+        		if 0 < m < nRows and 0 < n < nCols:
+
+		            source.append(i*nCols + j)
+		            target.append(m*nCols + n)
+    
+    nest.Connect([GC[s] for s in source], [GC[t] for t in target], {'rule':'one_to_one', 'make_symmetric':True}, {'model':'gap_junction', 'weight':connections['GC_gap']})
 
     # Connections from bipolar cells to the retinal ganglion cells
     source = []
