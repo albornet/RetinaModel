@@ -47,7 +47,7 @@ z_BC            = 49  # [um]
 z_HC            = 64  # [um]
 
 # Get the low-pass filter time constant associated to each layer membrane and position
-RC_GC           = 0.000001 #getRC(z_GC, 10)*10**3  # 0.4 [ms]
+RC_GC           = getRC(z_GC, 10)*10**3  # 0.4 [ms]
 RC_AC           = getRC(z_AC,  5)*10**3  # 0.65[ms]
 RC_BC           = getRC(z_BC,  5)*10**3  # 10  [ms]
 RC_HC           = getRC(z_HC, 10)*10**3  # 12  [ms]
@@ -84,7 +84,7 @@ connections    = {
     'AC_To_GC' :-700, # -7000 [nS/spike]
     'HC_To_BC' : -70, #  -700 [nS/spike]
     'BC_To_AC' :  70 , #   700 [nS/spike]
-    'GC_gap'   : 0 }
+    'GC_gap'   : 7 }
 
 # Scale the weights, if needed
 weightScale    = 0.0002    # 0.0005
