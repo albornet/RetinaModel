@@ -1,0 +1,4 @@
+
+Spikes times of neuron 0: 7.79	29.08	33.11	37.16	41.24	45.39	49.57	
+Spikes times of neuron 1: 30.63	36.01	41.04	46.13	51.17	
+Spikes times of neuron 2: 

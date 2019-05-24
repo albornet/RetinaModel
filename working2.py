@@ -14,10 +14,10 @@ nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'prin
 ##########################
 
 # Simulation parameters
-simulationTime  =  60.0      # [ms]
+simulationTime  = 150.0      # [ms]
 stepDuration    =   1.0      # [ms]  # put 1.0 here to see nice gifs
 startTime       =   0.0      # [ms]
-stopTime        =  20.0      # [ms]
+stopTime        =  10.0      # [ms]
 time            =  numpy.arange(0, simulationTime, stepDuration) # true time array, in [ms]
 
 # Retina parameters
@@ -35,9 +35,9 @@ nonInhibRangeAC =  1  # [pixels]
 # Input parameters
 inputTarget     =  (5, 5)            # [pixels]
 inputRadius     =   4                # [pixels]
-Voltage         =  180             # [mV]
+Voltage         =  200             # [mV]
 inputVoltage    =   0.05*Voltage     # [mV]
-inputNoise      =   inputVoltage/10.0
+inputNoise      =   0.0#inputVoltage/10.0
 shape           =   'prosthetic'
 
 # Layers z-position
@@ -73,18 +73,20 @@ neuronsToRecord = [(inputTarget[0]+  0,           inputTarget[1]+0),
 # Neurons custom parameters
 threshPot         = -55.0
 restPot           = -70.0  # more or less equal for all populations taking into account std in litterature
-neuronModel       = 'hh_psc_alpha_gap'
+neuronModel       = 'aeif_cond_alpha'
 interneuronModel  = 'iaf_cond_alpha'
-neuronParams      = {                        'tau_syn_ex': 10.0, 'tau_syn_in': 10.0, 'E_L'    : -70.0}
-interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,  'tau_syn_in':  1.0, 'V_reset': -70.0, 't_ref': 3.5}
+                                                                       # a qui ne fait rien???
+neuronParams      = {'V_th': threshPot, 't_ref': 0.5, 'V_reset': -67.5, 'a': 0.0, 'b': -50.0, 'tau_w': 400.0}
+interNeuronParams = {'V_th': threshPot+1000, 'tau_syn_ex': 1.0,  'tau_syn_in': 1.0, 'V_reset': -70.0, 't_ref': 3.5}
 
 # Connection parameters
 connections    = {
-    'BC_To_GC' :  700, #  7000 [nS/spike]
-    'AC_To_GC' : -700, #  -7000 [nS/spike]
-    'HC_To_BC' : -50, #  -300 [nS/spike]
-    'BC_To_AC' :  70 , #   700 [nS/spike]
-    'GC_gap'   :  7 }
+    'BC_To_GC' :  700,#700, #  7000 [nS/spike]
+    'AC_To_GC' :  -700,#-700, #  -7000 [nS/spike]
+    'HC_To_BC' :  -50,#-50, #  -300 [nS/spike]
+    'BC_To_AC' :  70,# 70, #   700 [nS/spike]
+    'GC_auto'  :    0
+    }
 
 # Scale the weights, if needed
 weightScale    = 0.0002    # 0.0005
@@ -111,14 +113,14 @@ HCLastVoltage = numpy.zeros((len(HC),))
 GCSD = nest.Create('spike_detector', nRows* nCols)
 
 # Connect the spike detectors to their respective populations
-nest.Connect(GC, GCSD, 'one_to_one')
+nest.Connect(GC, GCSD, 'one_to_one', {"weight": connections['GC_auto']})
 
-# Create the gif makers, for each population
-gifMakerList = []
-gifMakerList.append(gifMaker(name='GC', popID=GCSD, dimTuple=(1,            nRows,   nCols), orientedMap=False, spiking=True , baseline=None   ))
-# gifMakerList.append(gifMaker(name='BC', popID=BC,   dimTuple=(1, BGCRatio,  nRows,   nCols), orientedMap=True , spiking=False, baseline=restPot))
-# gifMakerList.append(gifMaker(name='AC', popID=AC,   dimTuple=(1,          nACRows, nACCols), orientedMap=False, spiking=False, baseline=restPot))
-# gifMakerList.append(gifMaker(name='HC', popID=HC,   dimTuple=(1,          nHCRows, nHCCols), orientedMap=False, spiking=False, baseline=restPot))
+# # Create the gif makers, for each population
+# gifMakerList = []
+# gifMakerList.append(gifMaker(name='GC', popID=GCSD, dimTuple=(1,            nRows,   nCols), orientedMap=False, spiking=True , baseline=None   ))
+# # gifMakerList.append(gifMaker(name='BC', popID=BC,   dimTuple=(1, BGCRatio,  nRows,   nCols), orientedMap=True , spiking=False, baseline=restPot))
+# # gifMakerList.append(gifMaker(name='AC', popID=AC,   dimTuple=(1,          nACRows, nACCols), orientedMap=False, spiking=False, baseline=restPot))
+# # gifMakerList.append(gifMaker(name='HC', popID=HC,   dimTuple=(1,          nHCRows, nHCCols), orientedMap=False, spiking=False, baseline=restPot))
 
 
 # # Create and connect the multimeter to simulate interneurons
@@ -243,21 +245,6 @@ for t in range(timeSteps):
                     HCVoltage = nest.GetStatus([HC[target]], 'V_m')[0] - restPot
                     nest.SetStatus([HC[target]], {'V_m': restPot + HCVoltage + StimHC})
 
-    # Gap junctions between GC
-    source = []
-    target = []
-    for i in range (nRows):
-        for j in range (nCols):
-
-        	shiftList = [(i+1,j+0),   (i-1,j+0),   (i+0,j+1),   (i+0,j-1)]
-        	for (m,n) in shiftList:
-        		if 0 < m < nRows and 0 < n < nCols:
-
-		            source.append(i*nCols + j)
-		            target.append(m*nCols + n)
-
-    nest.Connect([GC[s] for s in source], [GC[t] for t in target], {'rule':'one_to_one', 'make_symmetric':True}, {'model':'gap_junction', 'weight':connections['GC_gap']})
-
     # Connections from bipolar cells to the retinal ganglion cells
     source = []
     target = []
@@ -329,6 +316,8 @@ for t in range(timeSteps):
                                     if deltaPreSynVoltage > 0.0:
                                         postSynVoltage    = nest.GetStatus([AC[target]], 'V_m')[0] - restPot
                                         nest.SetStatus([AC[target]], {'V_m': restPot + postSynVoltage + connections['BC_To_AC']*preSynVoltage})
+    # autoconnection GC
+    nest.Connect(GC, GC, 'one_to_one',)
 
     # Update the last time-step presynaptic voltages
     for i in range(nRows):
@@ -344,29 +333,33 @@ for t in range(timeSteps):
                 HCLastVoltage[source] = nest.GetStatus([HC[source]], 'V_m')[0] - restPot
 
     # Run the simulation for one gif frame
-    nest.Simulate(stepDuration)
+    try:
+        nest.Simulate(stepDuration)
+    except:
+        continue
     # if t < timeSteps-1:
     #     sys.stdout.write("\033[2F") # move the cursor back to previous line
 
-    # Take screenshots of every recorded population
-    if t%25 == 0:
-        for instance in gifMakerList: # gifMaker.getInstances():
-            (namePop, nSpikes) = instance.takeScreenshot()
+    # # Take screenshots of every recorded population
+    # if t%25 == 0:
+    #     for instance in gifMakerList: # gifMaker.getInstances():
+    #         (namePop, nSpikes) = instance.takeScreenshot()
 
 
 #################################
 ### Read the network's output ###
 #################################
 
-# Create animated gif of stimulus
-sys.stdout.write('Creating animated gifs.\n\n')
-sys.stdout.flush()
-for instance in gifMakerList: # gifMaker.getInstances():
-    instance.createGif(figureDir, durationTime=0.2)
+# # Create animated gif of stimulus
+# sys.stdout.write('Creating animated gifs.\n\n')
+# sys.stdout.flush()
+# for instance in gifMakerList: # gifMaker.getInstances():
+#     instance.createGif(figureDir, durationTime=0.2)
 
 f = open('SimFigures/Spikes.txt', 'w')
 centralNeurons       = [0,1]
 centralNeuronsSpikes = []
+plt.figure()
 for i in range(len(neuronsToRecord)):
 
     # Obtain and display data
@@ -447,4 +440,5 @@ plt.plot(time, input_GC)
 
 # Show and save the plot
 plt.savefig('SimFigures/Raster.eps', format='eps', dpi=1000)
+#plt.savefig('./Results_Sustain/p1_'+str(p1)+'_p2_'+str(p2)+'.eps', format='eps', dpi=1000)
 plt.show()
