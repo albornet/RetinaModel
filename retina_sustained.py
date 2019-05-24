@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from makeGifs import gifMaker
 from utilities import *
 
-nCoresToUse = 4
+nCoresToUse = 1
 nest.sli_run('M_WARNING setverbosity') # avoid writing too many NEST messages
 nest.ResetKernel()
 nest.SetKernelStatus({'resolution': 0.01, 'local_num_threads':nCoresToUse, 'print_time': True})
@@ -38,7 +38,7 @@ inputTarget     =  (5, 5)            # [pixels]
 inputRadius     =   4                # [pixels]
 Voltage         = 200                # [mV]
 inputVoltage    =   0.05*Voltage     # [mV]
-inputNoise      =  (inputVoltage/10.0)*0.0
+inputNoise      =  (inputVoltage/10.0)*3.0
 shape           =  'prosthetic'
 
 # Layers z-position
